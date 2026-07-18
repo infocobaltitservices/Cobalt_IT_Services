@@ -1,0 +1,303 @@
+export const defaultSiteContent = {
+  brand: {
+    companyName: "Cobalt IT Services PVT LTD",
+    shortName: "Cobalt IT Services",
+    companySuffix: "Private Limited",
+    tagline: "Serving Society Through Data.",
+    logoUrl: "/images/logo.png",
+    socialLinks: [
+      { label: "Instagram", href: "https://www.instagram.com", icon: "instagram" },
+      { label: "X", href: "https://x.com", icon: "x" },
+      { label: "LinkedIn", href: "https://www.linkedin.com", icon: "linkedin" },
+      { label: "Facebook", href: "https://www.facebook.com", icon: "facebook" },
+    ],
+  },
+  home: {
+    heroTitleLines: [
+      { emphasis: "Innovative", rest: "technology" },
+      { emphasis: "Reliable", rest: "solution" },
+      { emphasis: "Sustainable", rest: "growth" },
+    ],
+    heroText:
+      "We partner with businesses to deliver secure IT infrastructure, GPU-powered computing, strategic digital marketing, and precision 3D solutions that create measurable business value.",
+    heroMetrics: [
+      { value: "01", label: "Technology First" },
+      { value: "02", label: "Business Focused" },
+      { value: "03", label: "Future Ready" },
+    ],
+    primaryCta: { label: "Start Inquiry", href: "#/contact-us" },
+    secondaryCta: { label: "View Gallery", href: "#/gallery" },
+    heroVideoDark: "/videos/hero-light-mode.mp4",
+    heroVideoLight: "/videos/hero-dark-mode.mp4",
+    heroVideoCta: { label: "Explore Services", href: "#/services" },
+    deliveryEyebrow: "Delivery Framework",
+    deliveryHeading: "A clear path from idea to launch, built for modern business needs.",
+    deliveryText:
+      "Our process keeps the work moving without noise, so each stage feels intentional, accountable, and easy to follow.",
+    deliverySteps: [
+      {
+        number: "01",
+        title: "Discover the brief",
+        text: "We start by understanding your goals, audience, and technical constraints so the solution stays focused.",
+      },
+      {
+        number: "02",
+        title: "Shape the system",
+        text: "We map structure, scope, and design direction early to avoid friction later in the build.",
+      },
+      {
+        number: "03",
+        title: "Build with precision",
+        text: "Execution stays clean and iterative, with deliberate attention to performance, polish, and reliability.",
+      },
+      {
+        number: "04",
+        title: "Launch and refine",
+        text: "We ship with care, then support the next round of improvements as your needs evolve.",
+      },
+    ],
+    selectedWorkHeading: "Selected Work",
+    selectedWorkText: "A simple, professional showcase of recent work. Hover a card to see the key details.",
+    selectedWorkItems: [
+      {
+        id: "brand-launch",
+        title: "Brand launch",
+        text: "Integrated design and rollout assets for a clean product introduction.",
+        image: "/images/Digital-Marketing-1-1.webp",
+        meta: ["Strategy", "Design", "Execution"],
+      },
+      {
+        id: "infrastructure-map",
+        title: "Infrastructure map",
+        text: "Architecture-first visual planning for secure systems and operations.",
+        image: "/images/images.jpg",
+        meta: ["Architecture", "Security", "Operations"],
+      },
+      {
+        id: "campaign-board",
+        title: "Campaign board",
+        text: "Marketing layouts that connect story, performance, and conversion.",
+        image: "/images/Digital-Marketing-1-1.webp",
+        meta: ["Campaigns", "Content", "Growth"],
+      },
+      {
+        id: "3d-showcase",
+        title: "3D showcase",
+        text: "Prototype visuals that make concepts feel tangible and production-ready.",
+        image: "/images/3d.webp",
+        meta: ["Prototype", "Fabrication", "Iteration"],
+      },
+      {
+        id: "ai-dashboard",
+        title: "AI dashboard",
+        text: "Analytics-style presentation for compute-led services and metrics.",
+        image: "/images/gpu-quiz-tab.avif",
+        meta: ["Analytics", "Compute", "Reporting"],
+      },
+      {
+        id: "product-demo",
+        title: "Product demo",
+        text: "A polished visual story for customer-facing technology showcases.",
+        image: "/images/images.jpg",
+        meta: ["Product", "Story", "Experience"],
+      },
+    ],
+  },
+  about: {
+    introCards: [
+      {
+        kicker: "Vision",
+        title: "To build trusted digital experiences that feel clear, premium, and future-ready.",
+        text: "We aim to help businesses present themselves with confidence through thoughtful design, reliable systems, and a refined visual identity.",
+      },
+      {
+        kicker: "Mission",
+        title: "To deliver technology and creative work with precision, speed, and care.",
+        text: "Our mission is to combine strategy, design, and execution so every client gets a polished result that supports long-term growth.",
+      },
+    ],
+    cta: { label: "Talk to Us", href: "#/contact-us" },
+    stats: [
+      { value: 40, suffix: "+", label: "Projects Delivered" },
+      { value: 231, suffix: "", label: "Satisfied Clients" },
+      { value: 32, suffix: "", label: "Awards Received" },
+    ],
+    foundersTitle: "Meet the Founders",
+    founders: [
+      {
+        id: "founder-1",
+        number: "01",
+        name: "Viktor Sanjaya",
+        role: "Founder",
+        bio: "Leads product direction, digital strategy, and the creative standards that shape the brand. Viktor's approach keeps every client experience polished, clear, and dependable.",
+        image: "/images/images.jpg",
+        reverse: false,
+        socialLinks: [
+          { label: "LinkedIn", href: "https://www.linkedin.com" },
+          { label: "X", href: "https://x.com" },
+        ],
+      },
+      {
+        id: "founder-2",
+        number: "02",
+        name: "Sophia Gusta",
+        role: "Co-Founder",
+        bio: "Oversees operations, client delivery, and team coordination. Sophia ensures the work stays organized, responsive, and aligned with a trusted advisory style.",
+        image: "/images/Digital-Marketing-1-1.webp",
+        reverse: true,
+        socialLinks: [
+          { label: "Instagram", href: "https://www.instagram.com" },
+          { label: "LinkedIn", href: "https://www.linkedin.com" },
+        ],
+      },
+    ],
+  },
+  services: {
+    heading: "Services",
+    text: "Detailed, business-ready service offerings with dedicated pages for scope, deliverables, and outcomes.",
+    items: [
+      {
+        id: "service-gpu",
+        slug: "gpu-as-a-service",
+        title: "GPU as a Service",
+        shortText: "High-performance compute for AI, ML, rendering, and research workloads.",
+        icon: "gpu",
+        heroLabel: "Accelerated Compute",
+        intro:
+          "Elastic GPU infrastructure designed for training, simulation, rendering, and burst-heavy compute without the cost of managing hardware internally.",
+        highlights: [
+          "On-demand GPU capacity for AI, rendering, and simulation workloads",
+          "Secure provisioning with monitored usage and environment setup",
+          "Scalable clusters for research teams, agencies, and production pipelines",
+        ],
+        deliverables: [
+          "Workload planning and GPU sizing",
+          "Cluster provisioning and access setup",
+          "Monitoring, uptime checks, and usage support",
+          "Security, backup, and environment maintenance",
+        ],
+        outcomes: ["Faster experimentation", "Lower hardware overhead", "Better compute visibility"],
+      },
+      {
+        id: "service-marketing",
+        slug: "digital-marketing",
+        title: "Digital Marketing",
+        shortText: "Blue-print growth systems, campaigns, SEO, and conversion strategy.",
+        icon: "marketing",
+        heroLabel: "Growth Systems",
+        intro:
+          "A strategy-led digital marketing service that combines content, campaign planning, SEO, analytics, and conversion thinking into one focused growth engine.",
+        highlights: [
+          "Campaign planning aligned with business goals and audience intent",
+          "SEO, content systems, and reporting built for long-term traction",
+          "Conversion-focused landing experiences and performance refinement",
+        ],
+        deliverables: [
+          "Marketing strategy and channel plan",
+          "SEO roadmap and content direction",
+          "Campaign creative and launch support",
+          "Monthly reporting with optimization actions",
+        ],
+        outcomes: ["Stronger visibility", "Higher-quality leads", "Clearer campaign reporting"],
+      },
+      {
+        id: "service-3d",
+        slug: "3d-printing",
+        title: "3D Printing",
+        shortText: "Concept-to-production visual manufacturing and prototyping.",
+        icon: "printing",
+        heroLabel: "Rapid Prototyping",
+        intro:
+          "Rapid prototyping and production-support workflows for teams that need physical concepts, test models, presentation pieces, or pre-manufacturing validation.",
+        highlights: [
+          "Fast iteration from concept to visual or functional prototype",
+          "Support for presentation models, test parts, and production-ready samples",
+          "Clean process guidance around material, finish, and print feasibility",
+        ],
+        deliverables: [
+          "Model review and print-readiness checks",
+          "Prototype planning and print execution",
+          "Material and finish recommendations",
+          "Iteration support for revised models",
+        ],
+        outcomes: ["Faster validation", "Reduced design friction", "Sharper physical presentations"],
+      },
+      {
+        id: "service-it",
+        slug: "it-infrastructure",
+        title: "IT Infrastructure",
+        shortText: "Secure, scalable systems with management and uptime visibility.",
+        icon: "infrastructure",
+        heroLabel: "Secure Operations",
+        intro:
+          "Reliable IT infrastructure support for organizations that need stable systems, cleaner visibility, better uptime, and confident day-to-day operations.",
+        highlights: [
+          "Infrastructure planning with security and uptime in mind",
+          "Monitoring, maintenance, and managed support workflows",
+          "Scalable system organization for growing teams and services",
+        ],
+        deliverables: [
+          "Infrastructure assessment and recommendations",
+          "Monitoring and maintenance setup",
+          "Security hardening and backup planning",
+          "Operational support and issue response guidance",
+        ],
+        outcomes: ["Improved stability", "Safer operations", "More reliable support visibility"],
+      },
+    ],
+  },
+  gallery: {
+    heading: "Gallery",
+    text: "A simple professional image-card gallery with a cleaner presentation than the collage preview on Home.",
+    items: [
+      { id: "gallery-1", title: "Brand launch", text: "Clean, presentation-ready visuals for a polished product debut.", image: "/images/Digital-Marketing-1-1.webp" },
+      { id: "gallery-2", title: "Infrastructure map", text: "Professional layouts that communicate system structure clearly.", image: "/images/images.jpg" },
+      { id: "gallery-3", title: "GPU compute", text: "Performance-led imagery for cloud and hardware-forward services.", image: "/images/gpu-quiz-tab.avif" },
+      { id: "gallery-4", title: "3D showcase", text: "Prototype and fabrication visuals with a refined gallery look.", image: "/images/3d.webp" },
+      { id: "gallery-5", title: "Campaign board", text: "Marketing assets arranged for clarity, hierarchy, and trust.", image: "/images/Digital-Marketing-1-1.webp" },
+      { id: "gallery-6", title: "Product demo", text: "Simple image cards that keep attention on the work itself.", image: "/images/images.jpg" },
+    ],
+  },
+  contact: {
+    heading: "Contact Us",
+    text: "Reach the Cobalt team directly or send a project inquiry using the form below.",
+    eyebrow: "Cobalt IT Services PVT LTD",
+    title: "Let us plan your next digital move.",
+    description:
+      "We are available for technology consulting, service inquiries, collaborations, and project briefs. Share what you need and we will respond with a clear next step.",
+    infoCards: [
+      { type: "link", label: "Phone", value: "+91 81928 95488", href: "tel:+918192895488" },
+      { type: "link", label: "Email", value: "anupambatra@cobaltitsevices.com", href: "mailto:anupambatra@cobaltitsevices.com" },
+      { type: "text", label: "Location", value: "RIF MJPRU Bareilly" },
+      { type: "text", label: "Response", value: "Same-day during business hours" },
+    ],
+    channelsTitle: "Digital Channels",
+    channels: [
+      { label: "LinkedIn", href: "https://www.linkedin.com" },
+      { label: "Instagram", href: "https://www.instagram.com" },
+      { label: "Facebook", href: "https://www.facebook.com" },
+      { label: "WhatsApp", href: "https://wa.me/918192895488" },
+    ],
+    mapTitle: "Find us here",
+    mapLabel: "RIF MJPRU Bareilly",
+    mapQuery: "RIF MJPRU Bareilly",
+  },
+  testimonials: {
+    heading: "Testimonials",
+    text: "Selected client impressions and collaboration feedback.",
+    items: [
+      { id: "testimonial-1", name: "Enterprise Client", quote: "The direction feels premium, focused, and ready for a serious brand presentation." },
+      { id: "testimonial-2", name: "Operations Lead", quote: "The structured pages and clean navigation make the experience easy to understand at a glance." },
+      { id: "testimonial-3", name: "Growth Partner", quote: "The visual system gives the brand a strong and trustworthy identity." },
+    ],
+  },
+  legal: {
+    heading: "Terms & Privacy Policy",
+    text: "Placeholder legal structure ready for final review and copy approval.",
+    sections: [
+      { id: "legal-terms", title: "Terms", text: "The site content, brand assets, and form usage are governed by the agreed project terms." },
+      { id: "legal-privacy", title: "Privacy", text: "Inquiry data is handled only for communication, service follow-up, and project coordination." },
+      { id: "legal-cookies", title: "Cookies", text: "Analytics or functional cookies can be added later once the deployment scope is approved." },
+    ],
+  },
+};
