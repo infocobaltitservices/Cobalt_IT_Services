@@ -1,9 +1,32 @@
 import { getSiteContent, saveSiteContent } from "../lib/siteContentStore.js";
 import { assertAdminAccess, createAdminSessionToken, getAdminCredentials } from "../lib/adminAuth.js";
 import { hasCloudinaryConfig, getCloudinary } from "../lib/cloudinary.js";
+import multer from "multer";
+
+const mediaUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 150 * 1024 * 1024,
+  },
+});
 
 function normalizeContent(payload) {
   return payload && typeof payload === "object" ? payload : null;
+}
+
+function uploadBufferToCloudinary(cloudinary, buffer, options) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(result);
+    });
+
+    stream.end(buffer);
+  });
 }
 
 export function registerSiteContentRoutes(app) {
@@ -65,6 +88,47 @@ export function registerSiteContentRoutes(app) {
       publicId: upload.public_id,
       width: upload.width,
       height: upload.height,
+    });
+  });
+
+  app.post("/api/admin/upload-media", assertAdminAccess, mediaUpload.single("file"), async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "file is required" });
+    }
+
+    if (!hasCloudinaryConfig()) {
+      return res.status(500).json({
+        message: "Cloudinary is not configured. Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.",
+      });
+    }
+
+    const folder = req.body?.folder || "cobalt-admin";
+    const requestedType = String(req.body?.resourceType || "").toLowerCase();
+    const isVideo = requestedType === "video" || req.file.mimetype.startsWith("video/");
+    const resourceType = isVideo ? "video" : "image";
+
+    if (!req.file.mimetype.startsWith("image/") && !req.file.mimetype.startsWith("video/")) {
+      return res.status(400).json({ message: "Only image and video files are supported" });
+    }
+
+    const cloudinary = getCloudinary();
+    const upload = await uploadBufferToCloudinary(cloudinary, req.file.buffer, {
+      folder,
+      resource_type: resourceType,
+      filename_override: req.file.originalname,
+      use_filename: true,
+      unique_filename: true,
+    });
+
+    return res.status(201).json({
+      url: upload.secure_url,
+      publicId: upload.public_id,
+      resourceType: upload.resource_type,
+      width: upload.width,
+      height: upload.height,
+      format: upload.format,
+      bytes: upload.bytes,
+      duration: upload.duration,
     });
   });
 }

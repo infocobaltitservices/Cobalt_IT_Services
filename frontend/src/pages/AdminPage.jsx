@@ -7,9 +7,27 @@ import {
   logoutAdmin,
   saveAdminSiteContent,
   uploadAdminImage,
+  uploadAdminMedia,
 } from "../api";
 import { defaultSiteContent } from "../defaultSiteContent";
 import ImageCropModal from "../components/ImageCropModal";
+
+function ThemeGlyph({ theme }) {
+  if (theme === "light") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="4.5" />
+        <path d="M12 2.5v2.2M12 19.3v2.2M3.2 12h2.2M18.6 12h2.2M5.7 5.7l1.6 1.6M16.7 16.7l1.6 1.6M5.7 18.3l1.6-1.6M16.7 7.3l1.6-1.6" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M16.8 14.8A7.2 7.2 0 1 1 9.2 7.2a6.2 6.2 0 0 0 7.6 7.6Z" />
+    </svg>
+  );
+}
 
 function clone(value) {
   return structuredClone(value);
@@ -42,6 +60,40 @@ function linesToSocialLinks(value) {
     .filter((item) => item.label || item.href);
 }
 
+function footerLinksToLines(items) {
+  return (items || []).map((item) => `${item.label || ""}|${item.href || ""}`).join("\n");
+}
+
+function linesToFooterLinks(value) {
+  return value
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label = "", href = ""] = line.split("|");
+      return { label: label.trim(), href: href.trim() };
+    })
+    .filter((item) => item.label || item.href);
+}
+
+function footerSocialLinksToLines(items) {
+  return (items || [])
+    .map((item) => `${item.label || ""}|${item.href || ""}|${item.icon || ""}`)
+    .join("\n");
+}
+
+function linesToFooterSocialLinks(value) {
+  return value
+    .split("\n")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [label = "", href = "", icon = ""] = line.split("|");
+      return { label: label.trim(), href: href.trim(), icon: icon.trim() };
+    })
+    .filter((item) => item.label || item.href || item.icon);
+}
+
 function updateItem(list, index, nextItem) {
   return list.map((item, itemIndex) => (itemIndex === index ? nextItem : item));
 }
@@ -50,20 +102,75 @@ function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function createServiceDraft(overrides = {}) {
+  return {
+    id: createId("service"),
+    slug: "new-service",
+    title: "New Service",
+    shortText: "",
+    icon: "gpu",
+    heroLabel: "Service Label",
+    intro: "",
+    highlights: [],
+    deliverables: [],
+    outcomes: [],
+    ...overrides,
+  };
+}
+
+function normalizeAboutMembers(about) {
+  const team = about?.Team || about?.Teams || about?.founders || [];
+  return {
+    ...(about || {}),
+    Team: team,
+    Teams: team,
+    founders: team,
+    TeamTitle: about?.TeamTitle || about?.TeamsTitle || about?.foundersTitle || "Meet the Team",
+  };
+}
+
+function normalizeFaqSection(faq) {
+  return {
+    ...(faq || {}),
+    heading: faq?.heading || "Frequently Asked Questions",
+    text:
+      faq?.text ||
+      "Quick answers to the questions we hear most often about services, timelines, support, and next steps.",
+    items: faq?.items || [],
+  };
+}
+
+function normalizeContentDraft(content) {
+  const next = clone(content || defaultSiteContent);
+  next.about = normalizeAboutMembers(next.about);
+  next.faq = normalizeFaqSection(next.faq);
+  return next;
+}
+
+function syncTeamMembers(nextAbout, teamMembers) {
+  const members = teamMembers || [];
+  nextAbout.Team = members;
+  nextAbout.Teams = members;
+  nextAbout.founders = members;
+  return nextAbout;
+}
+
 const adminSections = [
   { id: "overview", label: "Overview" },
   { id: "brand", label: "Site Settings" },
+  { id: "footer", label: "Footer" },
   { id: "home", label: "Homepage" },
-  { id: "about", label: "About & Founders" },
+  { id: "about", label: "About & Team" },
   { id: "services", label: "Services" },
   { id: "gallery", label: "Gallery" },
   { id: "contact", label: "Contact" },
+  { id: "faq", label: "FAQ" },
   { id: "testimonials", label: "Testimonials" },
   { id: "legal", label: "Legal" },
 ];
 
-function AdminPage({ initialContent, onContentSaved }) {
-  const [draft, setDraft] = useState(clone(initialContent || defaultSiteContent));
+function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
+  const [draft, setDraft] = useState(normalizeContentDraft(initialContent || defaultSiteContent));
   const [status, setStatus] = useState("idle");
   const [activeSection, setActiveSection] = useState("overview");
   const [activeServiceIndex, setActiveServiceIndex] = useState(0);
@@ -73,10 +180,12 @@ function AdminPage({ initialContent, onContentSaved }) {
 
   const overviewStats = useMemo(
     () => [
-      { label: "Founders", value: draft.about?.founders?.length || 0 },
+      { label: "Team", value: draft.about?.Team?.length || 0 },
       { label: "Services", value: draft.services?.items?.length || 0 },
       { label: "Gallery Items", value: draft.gallery?.items?.length || 0 },
+      { label: "FAQ Items", value: draft.faq?.items?.length || 0 },
       { label: "Testimonials", value: draft.testimonials?.items?.length || 0 },
+      { label: "Footer Columns", value: draft.footer?.columns?.length || 0 },
       { label: "Hero Slides", value: draft.home?.heroTitleLines?.length || 0 },
       { label: "Delivery Steps", value: draft.home?.deliverySteps?.length || 0 },
     ],
@@ -93,7 +202,7 @@ function AdminPage({ initialContent, onContentSaved }) {
     try {
       await loginAdmin(loginForm.email, loginForm.password);
       const content = await getAdminSiteContent();
-      syncDraft(content);
+      syncDraft(normalizeContentDraft(content));
       setAuthenticated(true);
       setStatus("authenticated");
     } catch (error) {
@@ -105,7 +214,7 @@ function AdminPage({ initialContent, onContentSaved }) {
     setStatus("refreshing");
     try {
       const content = await getAdminSiteContent();
-      syncDraft(content);
+      syncDraft(normalizeContentDraft(content));
       setStatus("loaded");
     } catch (error) {
       setStatus(error.message || "refresh-error");
@@ -115,9 +224,10 @@ function AdminPage({ initialContent, onContentSaved }) {
   async function handleSave() {
     setStatus("saving");
     try {
-      const saved = await saveAdminSiteContent(draft);
-      syncDraft(saved);
-      onContentSaved(saved);
+      const payload = normalizeContentDraft(draft);
+      const saved = await saveAdminSiteContent(payload);
+      syncDraft(normalizeContentDraft(saved));
+      onContentSaved(normalizeContentDraft(saved));
       setStatus("saved");
     } catch (error) {
       setStatus(error.message || "save-error");
@@ -126,10 +236,37 @@ function AdminPage({ initialContent, onContentSaved }) {
 
   async function handleUploadCropped(dataUrl) {
     if (!cropConfig) return;
-    const uploaded = await uploadAdminImage(dataUrl, cropConfig.folder);
-    const nextDraft = clone(draft);
-    cropConfig.apply(nextDraft, uploaded.url);
-    syncDraft(nextDraft);
+    setStatus("uploading-media");
+    try {
+      const uploaded = await uploadAdminImage(dataUrl, cropConfig.folder);
+      const nextDraft = normalizeContentDraft(draft);
+      cropConfig.apply(nextDraft, uploaded.url);
+      const saved = await saveAdminSiteContent(nextDraft);
+      syncDraft(normalizeContentDraft(saved));
+      onContentSaved(normalizeContentDraft(saved));
+      setStatus("saved");
+    } catch (error) {
+      setStatus(error.message || "upload-error");
+      throw error;
+    }
+  }
+
+  async function handleMediaUpload(file, folder, apply) {
+    if (!file) return;
+    setStatus("uploading-media");
+    try {
+      const uploaded = await uploadAdminMedia(file, folder);
+      const nextDraft = normalizeContentDraft(draft);
+      apply(nextDraft, uploaded.url);
+      const saved = await saveAdminSiteContent(nextDraft);
+      syncDraft(normalizeContentDraft(saved));
+      onContentSaved(normalizeContentDraft(saved));
+      setStatus("saved");
+      return uploaded;
+    } catch (error) {
+      setStatus(error.message || "upload-error");
+      throw error;
+    }
   }
 
   function launchCropper(config) {
@@ -148,9 +285,22 @@ function AdminPage({ initialContent, onContentSaved }) {
       <section className="section admin-login-page">
         <div className="admin-login-shell">
           <div className="admin-login-panel">
-            <span className="admin-login-kicker">Secure Access</span>
+            <div className="admin-login-head">
+              <span className="admin-login-kicker">Secure Access</span>
+              <button
+                type="button"
+                className={`theme-mode-button theme-mode-button-${theme}`}
+                aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+                onClick={onThemeToggle}
+              >
+                <span className={`theme-mode-glyph theme-${theme}`} aria-hidden="true">
+                  <ThemeGlyph theme={theme} />
+                </span>
+              </button>
+            </div>
             <h2>Admin panel login</h2>
-            <p>Enter the admin email and password to manage site content, founders, services, and uploaded media.</p>
+            <p>Enter the admin email and password to manage site content, Team, services, and uploaded media.</p>
 
             <form className="admin-login-form" onSubmit={handleLogin}>
               <label>
@@ -185,9 +335,10 @@ function AdminPage({ initialContent, onContentSaved }) {
     );
   }
 
-  const founders = draft.about?.founders || [];
+  const Team = draft.about?.Team || draft.about?.Teams || draft.about?.founders || [];
   const services = draft.services?.items || [];
   const galleryItems = draft.gallery?.items || [];
+  const faqItems = draft.faq?.items || [];
   const testimonials = draft.testimonials?.items || [];
   const legalSections = draft.legal?.sections || [];
   const service = services[activeServiceIndex] || services[0];
@@ -216,11 +367,23 @@ function AdminPage({ initialContent, onContentSaved }) {
 
         <div className="admin-content">
           <div className="admin-topbar">
-            <div>
+            <div className="admin-topbar-copy">
               <span className="admin-page-kicker">Manage Content</span>
               <h2>{adminSections.find((section) => section.id === activeSection)?.label || "Overview"}</h2>
+              <p>Update pages, visuals, copy, footer details, and every reusable content block from one place.</p>
             </div>
             <div className="admin-topbar-actions">
+              <button
+                type="button"
+                className={`theme-mode-button theme-mode-button-${theme}`}
+                aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+                onClick={onThemeToggle}
+              >
+                <span className={`theme-mode-glyph theme-${theme}`} aria-hidden="true">
+                  <ThemeGlyph theme={theme} />
+                </span>
+              </button>
               <button type="button" className="btn secondary" onClick={handleRefresh}>
                 Refresh
               </button>
@@ -258,7 +421,7 @@ function AdminPage({ initialContent, onContentSaved }) {
                 <ul className="admin-bullet-list">
                   <li>Homepage hero, stats, delivery framework, and selected work.</li>
                   <li>Brand settings, logo, footer social links, and public company details.</li>
-                  <li>About page vision, mission, founders, and animated metrics.</li>
+                  <li>About page vision, mission, Team, and animated metrics.</li>
                   <li>Services, nested service detail pages, gallery, contact, testimonials, and legal text.</li>
                 </ul>
               </article>
@@ -306,6 +469,154 @@ function AdminPage({ initialContent, onContentSaved }) {
             </article>
           )}
 
+          {activeSection === "footer" && (
+            <div className="admin-section-stack">
+              <article className="admin-board admin-board-soft">
+                <h3>Footer credits</h3>
+                <div className="admin-form-grid">
+                  <label>
+                    Rights text
+                    <input
+                      value={draft.footer?.rightsText || ""}
+                      onChange={(event) => {
+                        const next = clone(draft);
+                        next.footer = { ...(next.footer || {}), rightsText: event.target.value };
+                        syncDraft(next);
+                      }}
+                      placeholder="RIF © | All Rights Reserved."
+                    />
+                  </label>
+                  <label>
+                    Developed by label
+                    <input
+                      value={draft.footer?.developedByLabel || ""}
+                      onChange={(event) => {
+                        const next = clone(draft);
+                        next.footer = { ...(next.footer || {}), developedByLabel: event.target.value };
+                        syncDraft(next);
+                      }}
+                      placeholder="DEVELOPED BY"
+                    />
+                  </label>
+                  <label>
+                    Developer name
+                    <input
+                      value={draft.footer?.developedByName || ""}
+                      onChange={(event) => {
+                        const next = clone(draft);
+                        next.footer = { ...(next.footer || {}), developedByName: event.target.value };
+                        syncDraft(next);
+                      }}
+                      placeholder="VUN Tech"
+                    />
+                  </label>
+                  <label>
+                    Developer URL
+                    <input
+                      value={draft.footer?.developedByUrl || ""}
+                      onChange={(event) => {
+                        const next = clone(draft);
+                        next.footer = { ...(next.footer || {}), developedByUrl: event.target.value };
+                        syncDraft(next);
+                      }}
+                      placeholder="https://vuntech.online"
+                    />
+                  </label>
+                </div>
+              </article>
+
+              <article className="admin-board admin-board-soft">
+                <div className="admin-board-head-row">
+                  <h3>Footer columns</h3>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => {
+                      const next = clone(draft);
+                      next.footer = next.footer || {};
+                      next.footer.columns = [...(next.footer.columns || []), { id: createId("footer-col"), title: "New Column", links: [] }];
+                      syncDraft(next);
+                    }}
+                  >
+                    Add column
+                  </button>
+                </div>
+                <div className="admin-form-grid admin-form-grid-three">
+                  {(draft.footer?.columns || []).map((column, index) => (
+                    <div className="admin-repeater-card" key={column.id || index}>
+                      <label>
+                        Column title
+                        <input
+                          value={column.title || ""}
+                          onChange={(event) => {
+                            const next = clone(draft);
+                            next.footer = next.footer || {};
+                            next.footer.columns = updateItem(next.footer.columns || [], index, {
+                              ...column,
+                              title: event.target.value,
+                            });
+                            syncDraft(next);
+                          }}
+                        />
+                      </label>
+                      <label>
+                        Links
+                        <textarea
+                          rows="7"
+                          value={footerLinksToLines(column.links)}
+                          onChange={(event) => {
+                            const next = clone(draft);
+                            next.footer = next.footer || {};
+                            next.footer.columns = updateItem(next.footer.columns || [], index, {
+                              ...column,
+                              links: linesToFooterLinks(event.target.value),
+                            });
+                            syncDraft(next);
+                          }}
+                          placeholder="Home|#/home"
+                        />
+                      </label>
+                      <div className="admin-inline-actions">
+                        <button
+                          type="button"
+                          className="btn secondary"
+                          onClick={() => {
+                            const next = clone(draft);
+                            next.footer = next.footer || {};
+                            next.footer.columns = (next.footer.columns || []).filter((_, columnIndex) => columnIndex !== index);
+                            syncDraft(next);
+                          }}
+                        >
+                          Delete column
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="admin-board admin-board-soft">
+                <h3>Footer social links</h3>
+                <label>
+                  Social links
+                  <textarea
+                    rows="5"
+                    value={footerSocialLinksToLines(draft.footer?.socialLinks || draft.brand?.socialLinks)}
+                    onChange={(event) => {
+                      const next = clone(draft);
+                      next.footer = {
+                        ...(next.footer || {}),
+                        socialLinks: linesToFooterSocialLinks(event.target.value),
+                      };
+                      syncDraft(next);
+                    }}
+                    placeholder="Instagram|https://instagram.com|instagram"
+                  />
+                </label>
+              </article>
+            </div>
+          )}
+
           {activeSection === "home" && (
             <div className="admin-section-stack">
               <article className="admin-board admin-board-soft">
@@ -325,14 +636,62 @@ function AdminPage({ initialContent, onContentSaved }) {
                       />
                     </label>
                   ))}
-                  <label>
-                    Hero video for light mode
-                    <input value={draft.home.heroVideoLight} onChange={(event) => syncDraft({ ...draft, home: { ...draft.home, heroVideoLight: event.target.value } })} />
-                  </label>
-                  <label>
-                    Hero video for dark mode
-                    <input value={draft.home.heroVideoDark} onChange={(event) => syncDraft({ ...draft, home: { ...draft.home, heroVideoDark: event.target.value } })} />
-                  </label>
+                  <div className="admin-media-field">
+                    <label>
+                      Hero video for light mode
+                      <input value={draft.home.heroVideoLight} onChange={(event) => syncDraft({ ...draft, home: { ...draft.home, heroVideoLight: event.target.value } })} />
+                    </label>
+                    <label className="admin-upload-button">
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={async (event) => {
+                          const file = event.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            setStatus("uploading-media");
+                            await handleMediaUpload(file, "cobalt/home-videos", (nextDraft, url) => {
+                              nextDraft.home.heroVideoLight = url;
+                            });
+                            setStatus("uploaded");
+                          } catch (error) {
+                            setStatus(error.message || "upload-error");
+                          } finally {
+                            event.target.value = "";
+                          }
+                        }}
+                      />
+                      Upload light video
+                    </label>
+                  </div>
+                  <div className="admin-media-field">
+                    <label>
+                      Hero video for dark mode
+                      <input value={draft.home.heroVideoDark} onChange={(event) => syncDraft({ ...draft, home: { ...draft.home, heroVideoDark: event.target.value } })} />
+                    </label>
+                    <label className="admin-upload-button">
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={async (event) => {
+                          const file = event.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            setStatus("uploading-media");
+                            await handleMediaUpload(file, "cobalt/home-videos", (nextDraft, url) => {
+                              nextDraft.home.heroVideoDark = url;
+                            });
+                            setStatus("uploaded");
+                          } catch (error) {
+                            setStatus(error.message || "upload-error");
+                          } finally {
+                            event.target.value = "";
+                          }
+                        }}
+                      />
+                      Upload dark video
+                    </label>
+                  </div>
                 </div>
                 <label>
                   Hero description
@@ -463,18 +822,18 @@ function AdminPage({ initialContent, onContentSaved }) {
               </article>
 
               <article className="admin-board admin-board-soft">
-                <h3>Founders</h3>
+                <h3>Team</h3>
                 <div className="admin-stack">
-                  {founders.map((founder, index) => (
-                    <div className="admin-repeater-card" key={founder.id || index}>
+                  {Team.map((Team, index) => (
+                    <div className="admin-repeater-card" key={Team.id || index}>
                       <div className="admin-form-grid">
                         <label>
                           Number
                           <input
-                            value={founder.number}
+                            value={Team.number}
                             onChange={(event) => {
                               const next = clone(draft);
-                              next.about.founders = updateItem(next.about.founders, index, { ...founder, number: event.target.value });
+                              syncTeamMembers(next.about, updateItem(next.about.Team, index, { ...Team, number: event.target.value }));
                               syncDraft(next);
                             }}
                           />
@@ -482,10 +841,10 @@ function AdminPage({ initialContent, onContentSaved }) {
                         <label>
                           Name
                           <input
-                            value={founder.name}
+                            value={Team.name}
                             onChange={(event) => {
                               const next = clone(draft);
-                              next.about.founders = updateItem(next.about.founders, index, { ...founder, name: event.target.value });
+                              syncTeamMembers(next.about, updateItem(next.about.Team, index, { ...Team, name: event.target.value }));
                               syncDraft(next);
                             }}
                           />
@@ -493,10 +852,10 @@ function AdminPage({ initialContent, onContentSaved }) {
                         <label>
                           Role
                           <input
-                            value={founder.role}
+                            value={Team.role}
                             onChange={(event) => {
                               const next = clone(draft);
-                              next.about.founders = updateItem(next.about.founders, index, { ...founder, role: event.target.value });
+                              syncTeamMembers(next.about, updateItem(next.about.Team, index, { ...Team, role: event.target.value }));
                               syncDraft(next);
                             }}
                           />
@@ -504,10 +863,10 @@ function AdminPage({ initialContent, onContentSaved }) {
                         <label className="admin-checkbox">
                           <input
                             type="checkbox"
-                            checked={Boolean(founder.reverse)}
+                            checked={Boolean(Team.reverse)}
                             onChange={(event) => {
                               const next = clone(draft);
-                              next.about.founders = updateItem(next.about.founders, index, { ...founder, reverse: event.target.checked });
+                              syncTeamMembers(next.about, updateItem(next.about.Team, index, { ...Team, reverse: event.target.checked }));
                               syncDraft(next);
                             }}
                           />
@@ -518,10 +877,10 @@ function AdminPage({ initialContent, onContentSaved }) {
                         Bio
                         <textarea
                           rows="4"
-                          value={founder.bio}
+                          value={Team.bio}
                           onChange={(event) => {
                             const next = clone(draft);
-                            next.about.founders = updateItem(next.about.founders, index, { ...founder, bio: event.target.value });
+                            syncTeamMembers(next.about, updateItem(next.about.Team, index, { ...Team, bio: event.target.value }));
                             syncDraft(next);
                           }}
                         />
@@ -530,35 +889,33 @@ function AdminPage({ initialContent, onContentSaved }) {
                         Social links
                         <textarea
                           rows="3"
-                          value={socialLinksToLines(founder.socialLinks)}
+                          value={socialLinksToLines(Team.socialLinks)}
                           onChange={(event) => {
                             const next = clone(draft);
-                            next.about.founders = updateItem(next.about.founders, index, {
-                              ...founder,
-                              socialLinks: linesToSocialLinks(event.target.value),
-                            });
+                            syncTeamMembers(next.about, updateItem(next.about.Team, index, { ...Team, socialLinks: linesToSocialLinks(event.target.value) }));
                             syncDraft(next);
                           }}
                           placeholder="LinkedIn|https://www.linkedin.com/in/name"
                         />
                       </label>
                       <div className="admin-inline-actions">
-                        <img className="admin-thumb admin-thumb-wide" src={founder.image} alt={founder.name} />
+                        <img className="admin-thumb admin-thumb-wide" src={Team.image} alt={Team.name} />
                         <button
                           type="button"
                           className="btn secondary"
                           onClick={() =>
                             launchCropper({
-                              folder: "cobalt/founders",
+                              folder: "cobalt/Team",
                               aspect: 1.62,
                               outputWidth: 1200,
                               outputHeight: 740,
                               apply: (nextDraft, imageUrl) => {
-                                nextDraft.about.founders[index].image = imageUrl;
+                                const nextTeam = updateItem(nextDraft.about.Team, index, { ...nextDraft.about.Team[index], image: imageUrl });
+                                syncTeamMembers(nextDraft.about, nextTeam);
                               },
                             })
                           }
-                        >
+                          >
                           Upload image
                         </button>
                         <button
@@ -566,11 +923,12 @@ function AdminPage({ initialContent, onContentSaved }) {
                           className="btn secondary"
                           onClick={() => {
                             const next = clone(draft);
-                            next.about.founders.splice(index, 1);
+                            const nextTeam = next.about.Team.filter((_, itemIndex) => itemIndex !== index);
+                            syncTeamMembers(next.about, nextTeam);
                             syncDraft(next);
                           }}
                         >
-                          Delete founder
+                          Delete Team
                         </button>
                       </div>
                     </div>
@@ -580,20 +938,24 @@ function AdminPage({ initialContent, onContentSaved }) {
                     className="btn primary"
                     onClick={() => {
                       const next = clone(draft);
-                      next.about.founders.push({
-                        id: createId("founder"),
-                        number: "00",
-                        name: "New Founder",
-                        role: "Founder",
+                      const nextTeam = [
+                        ...(next.about.Team || []),
+                        {
+                        id: createId("Team"),
+                        number: String((Team.length || 0) + 1).padStart(2, "0"),
+                        name: "New Team",
+                        role: "Team",
                         bio: "",
-                        image: draft.brand.logoUrl,
+                        image: "",
                         reverse: false,
                         socialLinks: [{ label: "LinkedIn", href: "" }],
-                      });
+                        },
+                      ];
+                      syncTeamMembers(next.about, nextTeam);
                       syncDraft(next);
                     }}
                   >
-                    Add founder
+                    Add Team
                   </button>
                 </div>
               </article>
@@ -602,172 +964,233 @@ function AdminPage({ initialContent, onContentSaved }) {
 
           {activeSection === "services" && (
             <div className="admin-section-layout">
-              <div className="admin-subnav">
-                {services.map((item, index) => (
-                  <button
-                    type="button"
-                    key={item.id || item.slug}
-                    className={`admin-subnav-item ${activeServiceIndex === index ? "is-active" : ""}`}
-                    onClick={() => setActiveServiceIndex(index)}
-                  >
-                    {item.title}
-                  </button>
-                ))}
+              <aside className="admin-subnav admin-subnav-services">
+                <div className="admin-subnav-head">
+                  <span className="admin-sidebar-kicker">Service Library</span>
+                  <strong>{services.length} service{services.length === 1 ? "" : "s"}</strong>
+                  <p>Edit the public cards, detail pages, and service copy from one place.</p>
+                </div>
+
+                <div className="admin-subnav-scroll">
+                  {services.map((item, index) => (
+                    <button
+                      type="button"
+                      key={item.id || item.slug}
+                      className={`admin-subnav-item ${activeServiceIndex === index ? "is-active" : ""}`}
+                      onClick={() => setActiveServiceIndex(index)}
+                    >
+                      <span>{item.title}</span>
+                      <small>{item.slug}</small>
+                    </button>
+                  ))}
+                </div>
+
                 <button
                   type="button"
                   className="admin-subnav-create"
                   onClick={() => {
                     const next = clone(draft);
-                    next.services.items.push({
-                      id: `service-${Date.now()}`,
-                      slug: "new-service",
-                      title: "New Service",
-                      shortText: "",
-                      icon: "gpu",
-                      heroLabel: "Service Label",
-                      intro: "",
-                      highlights: [],
-                      deliverables: [],
-                      outcomes: [],
-                    });
+                    next.services.items.push(createServiceDraft());
                     syncDraft(next);
                     setActiveServiceIndex(next.services.items.length - 1);
                   }}
                 >
                   Add service
                 </button>
-              </div>
+              </aside>
 
-              {service && (
-                <article className="admin-board admin-board-soft">
-                  <h3>{service.title}</h3>
-                  <div className="admin-form-grid">
-                    <label>
-                      Title
-                      <input
-                        value={service.title}
-                        onChange={(event) => {
-                          const next = clone(draft);
-                          next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, title: event.target.value });
-                          syncDraft(next);
-                        }}
-                      />
-                    </label>
-                    <label>
-                      Slug
-                      <input
-                        value={service.slug}
-                        onChange={(event) => {
-                          const next = clone(draft);
-                          next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, slug: event.target.value });
-                          syncDraft(next);
-                        }}
-                      />
-                    </label>
-                    <label>
-                      Icon
-                      <select
-                        value={service.icon}
-                        onChange={(event) => {
-                          const next = clone(draft);
-                          next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, icon: event.target.value });
-                          syncDraft(next);
-                        }}
-                      >
-                        <option value="gpu">GPU</option>
-                        <option value="marketing">Marketing</option>
-                        <option value="printing">3D Printing</option>
-                        <option value="infrastructure">Infrastructure</option>
-                      </select>
-                    </label>
-                    <label>
-                      Hero label
-                      <input
-                        value={service.heroLabel}
-                        onChange={(event) => {
-                          const next = clone(draft);
-                          next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, heroLabel: event.target.value });
-                          syncDraft(next);
-                        }}
-                      />
-                    </label>
-                  </div>
-                  <label>
-                    Card text
-                    <textarea
-                      rows="2"
-                      value={service.shortText}
-                      onChange={(event) => {
+              <div className="admin-service-editor-stack">
+                {service ? (
+                  <>
+                    <article className="admin-board admin-board-soft admin-service-preview">
+                      <div className="admin-service-preview-head">
+                        <div>
+                          <span className="admin-page-kicker">Live preview</span>
+                          <h3>{service.title}</h3>
+                        </div>
+                        <span className={`service-icon-tile icon-${service.icon}`} aria-hidden="true">
+                          <span className="admin-service-preview-mark">{service.heroLabel?.slice(0, 2).toUpperCase() || "SV"}</span>
+                        </span>
+                      </div>
+                      <p>{service.shortText}</p>
+                      <div className="admin-service-preview-meta">
+                        <span>{service.slug}</span>
+                        <span>{service.icon}</span>
+                        <span>{service.highlights?.length || 0} highlights</span>
+                        <span>{service.deliverables?.length || 0} deliverables</span>
+                        <span>{service.outcomes?.length || 0} outcomes</span>
+                      </div>
+                    </article>
+
+                    <article className="admin-board admin-board-soft">
+                      <div className="admin-board-head-row">
+                        <div>
+                          <h3>Edit service</h3>
+                          <p className="admin-board-subtitle">Shape the card and the detail page together so both stay in sync.</p>
+                        </div>
+                        <div className="admin-inline-actions">
+                          <button
+                            type="button"
+                            className="btn secondary"
+                            onClick={() => {
+                              const next = clone(draft);
+                              const duplicate = createServiceDraft({
+                                ...service,
+                                id: createId("service"),
+                                slug: `${service.slug || "new-service"}-copy`,
+                                title: `${service.title || "Service"} Copy`,
+                              });
+                              next.services.items.splice(activeServiceIndex + 1, 0, duplicate);
+                              syncDraft(next);
+                              setActiveServiceIndex(activeServiceIndex + 1);
+                            }}
+                          >
+                            Duplicate
+                          </button>
+                          <button
+                            type="button"
+                            className="btn secondary"
+                            onClick={() => {
+                              const next = clone(draft);
+                              next.services.items.splice(activeServiceIndex, 1);
+                              syncDraft(next);
+                              setActiveServiceIndex((prev) => Math.max(0, Math.min(prev, next.services.items.length - 1)));
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="admin-form-grid admin-form-grid-three">
+                        <label>
+                          Title
+                          <input
+                            value={service.title}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, title: event.target.value });
+                              syncDraft(next);
+                            }}
+                          />
+                        </label>
+                        <label>
+                          Slug
+                          <input
+                            value={service.slug}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, slug: event.target.value });
+                              syncDraft(next);
+                            }}
+                          />
+                        </label>
+                        <label>
+                          Icon
+                          <select
+                            value={service.icon}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, icon: event.target.value });
+                              syncDraft(next);
+                            }}
+                          >
+                            <option value="gpu">GPU</option>
+                            <option value="marketing">Marketing</option>
+                            <option value="printing">3D Printing</option>
+                            <option value="infrastructure">Infrastructure</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <div className="admin-form-grid admin-form-grid-two">
+                        <label>
+                          Hero label
+                          <input
+                            value={service.heroLabel}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, heroLabel: event.target.value });
+                              syncDraft(next);
+                            }}
+                          />
+                        </label>
+                        <label>
+                          Card text
+                          <textarea
+                            rows="3"
+                            value={service.shortText}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, shortText: event.target.value });
+                              syncDraft(next);
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      <label>
+                        Detail intro
+                        <textarea
+                          rows="4"
+                          value={service.intro}
+                          onChange={(event) => {
+                            const next = clone(draft);
+                            next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, intro: event.target.value });
+                            syncDraft(next);
+                          }}
+                        />
+                      </label>
+                    </article>
+
+                    <div className="admin-service-list-grid">
+                      {[
+                        { title: "Highlights", key: "highlights", value: service.highlights },
+                        { title: "Deliverables", key: "deliverables", value: service.deliverables },
+                        { title: "Outcomes", key: "outcomes", value: service.outcomes },
+                      ].map((group) => (
+                        <article className="admin-board admin-board-soft admin-list-editor" key={group.key}>
+                          <h3>{group.title}</h3>
+                          <p className="admin-board-subtitle">One item per line. Keep the wording crisp and client-facing.</p>
+                          <label>
+                            {group.title}
+                            <textarea
+                              rows="7"
+                              value={arrayToLines(group.value)}
+                              onChange={(event) => {
+                                const next = clone(draft);
+                                next.services.items = updateItem(next.services.items, activeServiceIndex, {
+                                  ...service,
+                                  [group.key]: linesToArray(event.target.value),
+                                });
+                                syncDraft(next);
+                              }}
+                              placeholder={`Add ${group.title.toLowerCase()} on separate lines`}
+                            />
+                          </label>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <article className="admin-board admin-board-soft">
+                    <h3>No services yet</h3>
+                    <p className="admin-board-subtitle">Create the first service entry to begin editing the public services page.</p>
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => {
                         const next = clone(draft);
-                        next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, shortText: event.target.value });
+                        next.services.items.push(createServiceDraft());
                         syncDraft(next);
+                        setActiveServiceIndex(next.services.items.length - 1);
                       }}
-                    />
-                  </label>
-                  <label>
-                    Detail intro
-                    <textarea
-                      rows="3"
-                      value={service.intro}
-                      onChange={(event) => {
-                        const next = clone(draft);
-                        next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, intro: event.target.value });
-                        syncDraft(next);
-                      }}
-                    />
-                  </label>
-                  <div className="admin-form-grid admin-form-grid-three">
-                    <label>
-                      Highlights
-                      <textarea
-                        rows="6"
-                        value={arrayToLines(service.highlights)}
-                        onChange={(event) => {
-                          const next = clone(draft);
-                          next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, highlights: linesToArray(event.target.value) });
-                          syncDraft(next);
-                        }}
-                      />
-                    </label>
-                    <label>
-                      Deliverables
-                      <textarea
-                        rows="6"
-                        value={arrayToLines(service.deliverables)}
-                        onChange={(event) => {
-                          const next = clone(draft);
-                          next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, deliverables: linesToArray(event.target.value) });
-                          syncDraft(next);
-                        }}
-                      />
-                    </label>
-                    <label>
-                      Outcomes
-                      <textarea
-                        rows="6"
-                        value={arrayToLines(service.outcomes)}
-                        onChange={(event) => {
-                          const next = clone(draft);
-                          next.services.items = updateItem(next.services.items, activeServiceIndex, { ...service, outcomes: linesToArray(event.target.value) });
-                          syncDraft(next);
-                        }}
-                      />
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn secondary"
-                    onClick={() => {
-                      const next = clone(draft);
-                      next.services.items.splice(activeServiceIndex, 1);
-                      syncDraft(next);
-                      setActiveServiceIndex(Math.max(0, activeServiceIndex - 1));
-                    }}
-                  >
-                    Delete service
-                  </button>
-                </article>
-              )}
+                    >
+                      Add service
+                    </button>
+                  </article>
+                )}
+              </div>
             </div>
           )}
 
@@ -882,6 +1305,108 @@ function AdminPage({ initialContent, onContentSaved }) {
                 Description
                 <textarea rows="4" value={draft.contact.description} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, description: event.target.value } })} />
               </label>
+            </article>
+          )}
+
+          {activeSection === "faq" && (
+            <article className="admin-board admin-board-soft">
+              <div className="admin-board-head-row">
+                <div>
+                  <h3>FAQ page</h3>
+                  <p className="admin-board-subtitle">Edit the public FAQ page from here. Keep questions short and answers clear.</p>
+                </div>
+                <button
+                  type="button"
+                  className="btn primary"
+                  onClick={() => {
+                    const next = clone(draft);
+                    next.faq = normalizeFaqSection(next.faq);
+                    next.faq.items = [
+                      ...(next.faq.items || []),
+                      {
+                        id: createId("faq"),
+                        question: "New question",
+                        answer: "Write the answer here.",
+                      },
+                    ];
+                    syncDraft(next);
+                  }}
+                >
+                  Add FAQ item
+                </button>
+              </div>
+              <div className="admin-form-grid">
+                <label>
+                  Heading
+                  <input
+                    value={draft.faq?.heading || ""}
+                    onChange={(event) => {
+                      const next = clone(draft);
+                      next.faq = normalizeFaqSection(next.faq);
+                      next.faq.heading = event.target.value;
+                      syncDraft(next);
+                    }}
+                  />
+                </label>
+                <label>
+                  Intro text
+                  <textarea
+                    rows="3"
+                    value={draft.faq?.text || ""}
+                    onChange={(event) => {
+                      const next = clone(draft);
+                      next.faq = normalizeFaqSection(next.faq);
+                      next.faq.text = event.target.value;
+                      syncDraft(next);
+                    }}
+                  />
+                </label>
+              </div>
+              <div className="admin-stack">
+                {faqItems.map((item, index) => (
+                  <div className="admin-repeater-card" key={item.id || index}>
+                    <label>
+                      Question
+                      <input
+                        value={item.question}
+                        onChange={(event) => {
+                          const next = clone(draft);
+                          next.faq = normalizeFaqSection(next.faq);
+                          next.faq.items = updateItem(next.faq.items, index, { ...item, question: event.target.value });
+                          syncDraft(next);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      Answer
+                      <textarea
+                        rows="4"
+                        value={item.answer}
+                        onChange={(event) => {
+                          const next = clone(draft);
+                          next.faq = normalizeFaqSection(next.faq);
+                          next.faq.items = updateItem(next.faq.items, index, { ...item, answer: event.target.value });
+                          syncDraft(next);
+                        }}
+                      />
+                    </label>
+                    <div className="admin-inline-actions">
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        onClick={() => {
+                          const next = clone(draft);
+                          next.faq = normalizeFaqSection(next.faq);
+                          next.faq.items = next.faq.items.filter((_, itemIndex) => itemIndex !== index);
+                          syncDraft(next);
+                        }}
+                      >
+                        Delete item
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </article>
           )}
 

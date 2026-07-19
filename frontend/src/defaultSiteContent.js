@@ -12,6 +12,82 @@ export const defaultSiteContent = {
       { label: "Facebook", href: "https://www.facebook.com", icon: "facebook" },
     ],
   },
+  footer: {
+    rightsText: "RIF © | All Rights Reserved.",
+    developedByLabel: "DEVELOPED BY",
+    developedByName: "VUN Tech",
+    developedByUrl: "https://vuntech.online",
+    columns: [
+      {
+        id: "footer-main",
+        title: "Main Page",
+        links: [
+          { label: "Home", href: "#/home" },
+          { label: "About", href: "#/about-us" },
+          { label: "Services", href: "#/services" },
+          { label: "Gallery", href: "#/gallery" },
+          { label: "Contact", href: "#/contact-us" },
+        ],
+      },
+      {
+        id: "footer-quick",
+        title: "Quick Links",
+        links: [
+          { label: "Integration", href: "#/services" },
+          { label: "Team", href: "#/services" },
+          { label: "Career", href: "#/services" },
+          { label: "FAQ", href: "#/faq" },
+          { label: "404", href: "#/terms-privacy-policy" },
+        ],
+      },
+      {
+        id: "footer-others",
+        title: "Others",
+        links: [
+          { label: "Privacy Policy", href: "#/terms-privacy-policy" },
+          { label: "Terms & Condition", href: "#/terms-privacy-policy" },
+          { label: "Waitlist", href: "#/contact-us" },
+          { label: "Changelog", href: "#/contact-us" },
+        ],
+      },
+    ],
+    socialLinks: [
+      { label: "Instagram", href: "https://www.instagram.com", icon: "instagram" },
+      { label: "X", href: "https://x.com", icon: "x" },
+      { label: "LinkedIn", href: "https://www.linkedin.com", icon: "linkedin" },
+      { label: "Facebook", href: "https://www.facebook.com", icon: "facebook" },
+    ],
+  },
+  faq: {
+    heading: "Frequently Asked Questions",
+    text: "Quick answers to the questions we hear most often about services, timelines, support, and next steps.",
+    items: [
+      {
+        id: "faq-1",
+        question: "What services do you offer?",
+        answer:
+          "We provide GPU as a Service, Digital Marketing, 3D Printing, and IT Infrastructure solutions, plus related creative and technical support.",
+      },
+      {
+        id: "faq-2",
+        question: "Can I edit everything from the admin panel?",
+        answer:
+          "Yes. You can update the FAQ section, founders/team, services, gallery, footer, and all major reusable content blocks from the admin panel.",
+      },
+      {
+        id: "faq-3",
+        question: "Can you upload images and videos directly?",
+        answer:
+          "Yes. The admin panel supports Cloudinary uploads for both images and videos, including team images and hero video files.",
+      },
+      {
+        id: "faq-4",
+        question: "How do I get started?",
+        answer:
+          "Use the Contact page or the Enquiry button in the header to send your project details. We’ll review the scope and get back to you.",
+      },
+    ],
+  },
   home: {
     heroTitleLines: [
       { emphasis: "Innovative", rest: "technology" },
@@ -122,13 +198,13 @@ export const defaultSiteContent = {
       { value: 231, suffix: "", label: "Satisfied Clients" },
       { value: 32, suffix: "", label: "Awards Received" },
     ],
-    foundersTitle: "Meet the Founders",
-    founders: [
+    TeamTitle: "Meet the Team",
+    Team: [
       {
-        id: "founder-1",
+        id: "Team-1",
         number: "01",
         name: "Viktor Sanjaya",
-        role: "Founder",
+        role: "Team",
         bio: "Leads product direction, digital strategy, and the creative standards that shape the brand. Viktor's approach keeps every client experience polished, clear, and dependable.",
         image: "/images/images.jpg",
         reverse: false,
@@ -138,10 +214,10 @@ export const defaultSiteContent = {
         ],
       },
       {
-        id: "founder-2",
+        id: "Team-2",
         number: "02",
         name: "Sophia Gusta",
-        role: "Co-Founder",
+        role: "Co-Team",
         bio: "Oversees operations, client delivery, and team coordination. Sophia ensures the work stays organized, responsive, and aligned with a trusted advisory style.",
         image: "/images/Digital-Marketing-1-1.webp",
         reverse: true,
@@ -168,7 +244,7 @@ export const defaultSiteContent = {
         highlights: [
           "On-demand GPU capacity for AI, rendering, and simulation workloads",
           "Secure provisioning with monitored usage and environment setup",
-          "Scalable clusters for research teams, agencies, and production pipelines",
+          "Scalable clusters for research Team, agencies, and production pipelines",
         ],
         deliverables: [
           "Workload planning and GPU sizing",
@@ -208,7 +284,7 @@ export const defaultSiteContent = {
         icon: "printing",
         heroLabel: "Rapid Prototyping",
         intro:
-          "Rapid prototyping and production-support workflows for teams that need physical concepts, test models, presentation pieces, or pre-manufacturing validation.",
+          "Rapid prototyping and production-support workflows for Team that need physical concepts, test models, presentation pieces, or pre-manufacturing validation.",
         highlights: [
           "Fast iteration from concept to visual or functional prototype",
           "Support for presentation models, test parts, and production-ready samples",
@@ -234,7 +310,7 @@ export const defaultSiteContent = {
         highlights: [
           "Infrastructure planning with security and uptime in mind",
           "Monitoring, maintenance, and managed support workflows",
-          "Scalable system organization for growing teams and services",
+          "Scalable system organization for growing Team and services",
         ],
         deliverables: [
           "Infrastructure assessment and recommendations",

@@ -6,6 +6,7 @@ import HomePage from "./pages/HomePage";
 import ServicesPage from "./pages/ServicesPage";
 import PortfolioGalleryPage from "./pages/PortfolioGalleryPage";
 import ContactPage from "./pages/ContactPage";
+import FAQPage from "./pages/FAQPage";
 import TestimonialsPage from "./pages/TestimonialsPage";
 import TermsPrivacyPage from "./pages/TermsPrivacyPage";
 import ServiceDetailPage from "./pages/ServiceDetailPage";
@@ -45,6 +46,26 @@ function SocialIcon({ kind }) {
   );
 }
 
+function normalizeAboutSection(about) {
+  const team = about?.Team || about?.Teams || about?.founders || [];
+  return {
+    ...(about || {}),
+    Team: team,
+    Teams: team,
+    founders: team,
+    TeamTitle: about?.TeamTitle || about?.TeamsTitle || about?.foundersTitle || "Meet the Team",
+  };
+}
+
+function normalizeSiteContent(content) {
+  const next = content || defaultSiteContent;
+  return {
+    ...next,
+    about: normalizeAboutSection(next.about),
+    faq: next.faq || defaultSiteContent.faq,
+  };
+}
+
 function App() {
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "light";
@@ -53,7 +74,7 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [apiStatus, setApiStatus] = useState("Loading backend...");
-  const [siteContent, setSiteContent] = useState(defaultSiteContent);
+  const [siteContent, setSiteContent] = useState(normalizeSiteContent(defaultSiteContent));
   const readRoute = () => (window.location.hash.replace("#/", "") || "home").toLowerCase();
   const [route, setRoute] = useState(readRoute);
 
@@ -92,7 +113,7 @@ function App() {
       }
 
       if (contentResult.status === "fulfilled") {
-        setSiteContent(contentResult.value);
+        setSiteContent(normalizeSiteContent(contentResult.value));
       }
     });
 
@@ -104,6 +125,49 @@ function App() {
   const serviceSlug = route.startsWith("services/") ? route.slice("services/".length) : null;
   const activePage = route === "home" ? "home" : serviceSlug ? "service-detail" : route;
   const activeService = siteContent.services.items.find((item) => item.slug === serviceSlug);
+  const footer = siteContent.footer || {};
+  const footerColumns =
+    footer.columns?.length > 0
+      ? footer.columns
+      : [
+          {
+            id: "footer-main",
+            title: "Main Page",
+            links: [
+              { label: "Home", href: "#/home" },
+              { label: "About", href: "#/about-us" },
+              { label: "Services", href: "#/services" },
+              { label: "Gallery", href: "#/gallery" },
+              { label: "Contact", href: "#/contact-us" },
+            ],
+          },
+          {
+            id: "footer-quick",
+            title: "Quick Links",
+            links: [
+              { label: "Integration", href: "#/services" },
+              { label: "Team", href: "#/services" },
+              { label: "Career", href: "#/services" },
+              { label: "FAQ", href: "#/testimonials" },
+              { label: "404", href: "#/terms-privacy-policy" },
+            ],
+          },
+          {
+            id: "footer-others",
+            title: "Others",
+            links: [
+              { label: "Privacy Policy", href: "#/terms-privacy-policy" },
+              { label: "Terms & Condition", href: "#/terms-privacy-policy" },
+              { label: "Waitlist", href: "#/contact-us" },
+              { label: "Changelog", href: "#/contact-us" },
+            ],
+          },
+        ];
+  const footerSocialLinks = footer.socialLinks?.length ? footer.socialLinks : siteContent.brand.socialLinks || [];
+  const footerRightsText = footer.rightsText || "RIF © | All Rights Reserved.";
+  const footerDevelopedByLabel = footer.developedByLabel || "DEVELOPED BY";
+  const footerDevelopedByName = footer.developedByName || "VUN Tech";
+  const footerDevelopedByUrl = footer.developedByUrl || "https://vuntech.online";
 
   const anchors = useMemo(
     () =>
@@ -170,14 +234,24 @@ function App() {
 
       <main>
         {activePage === "home" && <HomePage content={siteContent.home} theme={theme} apiStatus={apiStatus} />}
-        {activePage === "about-us" && <AboutPage content={siteContent.about} brand={siteContent.brand} />}
+      {activePage === "about-us" && <AboutPage content={siteContent.about} brand={siteContent.brand} />}
         {activePage === "services" && <ServicesPage content={siteContent.services} />}
         {activePage === "service-detail" && <ServiceDetailPage service={activeService} />}
         {activePage === "gallery" && <PortfolioGalleryPage content={siteContent.gallery} />}
         {activePage === "contact-us" && <ContactPage content={siteContent.contact} brand={siteContent.brand} />}
+        {activePage === "faq" && <FAQPage content={siteContent.faq} />}
         {activePage === "testimonials" && <TestimonialsPage content={siteContent.testimonials} />}
         {activePage === "terms-privacy-policy" && <TermsPrivacyPage content={siteContent.legal} />}
-        {activePage === "admin" && <AdminPage initialContent={siteContent} onContentSaved={setSiteContent} />}
+        {
+          activePage === "admin" && (
+            <AdminPage
+              initialContent={siteContent}
+              onContentSaved={(content) => setSiteContent(normalizeSiteContent(content))}
+              theme={theme}
+              onThemeToggle={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
+            />
+          )
+        }
       </main>
 
       {activePage !== "admin" && (
@@ -196,39 +270,29 @@ function App() {
                 </div>
                 <p className="footer-brand-copy">{siteContent.brand.companyName}</p>
               </div>
-
-              <div className="footer-link-column">
-                <span>Main Page</span>
-                <a href="#/home">Home</a>
-                <a href="#/about-us">About</a>
-                <a href="#/services">Services</a>
-                <a href="#/gallery">Gallery</a>
-                <a href="#/contact-us">Contact</a>
-              </div>
-
-              <div className="footer-link-column">
-                <span>Quick Links</span>
-                <a href="#/services">Integration</a>
-                <a href="#/services">Teams</a>
-                <a href="#/services">Career</a>
-                <a href="#/testimonials">FAQ</a>
-                <a href="#/terms-privacy-policy">404</a>
-              </div>
-
-              <div className="footer-link-column">
-                <span>Others</span>
-                <a href="#/terms-privacy-policy">Privacy Policy</a>
-                <a href="#/terms-privacy-policy">Terms &amp; Condition</a>
-                <a href="#/contact-us">Waitlist</a>
-                <a href="#/contact-us">Changelog</a>
-              </div>
+              {footerColumns.map((column) => (
+                <div className="footer-link-column" key={column.id || column.title}>
+                  <span>{column.title}</span>
+                  {(column.links || []).map((link) => (
+                    <a key={`${column.id || column.title}-${link.label}`} href={link.href}>
+                      {link.label}
+                    </a>
+                  ))}
+                </div>
+              ))}
             </div>
 
             <div className="footer-bottom-minimal footer-bottom-premium">
-              <p>© 2025 Design &amp; Developed by {siteContent.brand.shortName}</p>
+              <div className="footer-credit-stack">
+                <p className="footer-credit-line">{footerRightsText}</p>
+                <p className="footer-credit-label">{footerDevelopedByLabel}</p>
+                <a className="footer-credit-link" href={footerDevelopedByUrl} target="_blank" rel="noreferrer">
+                  {footerDevelopedByName}
+                </a>
+              </div>
               <div className="footer-social-block">
                 <div className="footer-social-list">
-                  {siteContent.brand.socialLinks.map((item) => (
+                  {footerSocialLinks.map((item) => (
                     <a key={item.label} href={item.href} target="_blank" rel="noreferrer" aria-label={item.label}>
                       <SocialIcon kind={item.icon} />
                     </a>

@@ -10,7 +10,7 @@ export const services = [
     highlights: [
       "On-demand GPU capacity for AI, rendering, and simulation workloads",
       "Secure provisioning with monitored usage and environment setup",
-      "Scalable clusters for research teams, agencies, and production pipelines",
+      "Scalable clusters for research Team, agencies, and production pipelines",
     ],
     deliverables: [
       "Workload planning and GPU sizing",
@@ -48,7 +48,7 @@ export const services = [
     icon: "printing",
     heroLabel: "Rapid Prototyping",
     intro:
-      "Rapid prototyping and production-support workflows for teams that need physical concepts, test models, presentation pieces, or pre-manufacturing validation.",
+      "Rapid prototyping and production-support workflows for Team that need physical concepts, test models, presentation pieces, or pre-manufacturing validation.",
     highlights: [
       "Fast iteration from concept to visual or functional prototype",
       "Support for presentation models, test parts, and production-ready samples",
@@ -73,7 +73,7 @@ export const services = [
     highlights: [
       "Infrastructure planning with security and uptime in mind",
       "Monitoring, maintenance, and managed support workflows",
-      "Scalable system organization for growing teams and services",
+      "Scalable system organization for growing Team and services",
     ],
     deliverables: [
       "Infrastructure assessment and recommendations",

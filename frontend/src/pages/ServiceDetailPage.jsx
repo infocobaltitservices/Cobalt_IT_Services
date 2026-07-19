@@ -66,7 +66,7 @@ function ServiceDetailPage({ service }) {
           </article>
 
           <article className="service-detail-card service-detail-card-wide">
-            <h3>Why teams choose this</h3>
+            <h3>Why Team choose this</h3>
             <div className="service-outcomes">
               {service.outcomes?.map((item) => (
                 <span key={item}>{item}</span>

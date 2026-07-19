@@ -139,3 +139,25 @@ export async function uploadAdminImage(imageData, folder = "cobalt-admin") {
 
   return response.json();
 }
+
+export async function uploadAdminMedia(file, folder = "cobalt-admin") {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("folder", folder);
+  formData.append("resourceType", file.type.startsWith("video/") ? "video" : "image");
+
+  const response = await fetch(`${API_BASE}/api/admin/upload-media`, {
+    method: "POST",
+    headers: {
+      ...getAdminHeaders(),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || "Media upload failed");
+  }
+
+  return response.json();
+}

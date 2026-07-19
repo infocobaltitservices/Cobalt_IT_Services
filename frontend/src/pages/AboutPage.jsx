@@ -54,44 +54,74 @@ function CountUp({ value, suffix = "" }) {
   );
 }
 
+function TeamCard({ Team }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const hasImage = Boolean(Team.image) && !imageFailed;
+  const initials = (Team.name || "Team")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return (
+    <article className="about-Team-card">
+      <div className="about-Team-card-media">
+        {hasImage ? (
+          <img
+            src={Team.image}
+            alt={Team.name}
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <div className="about-Team-card-placeholder" aria-hidden="true">
+            <span>{initials || "CF"}</span>
+            <small>Upload photo</small>
+          </div>
+        )}
+      </div>
+      <div className="about-Team-card-copy">
+        <div className="about-Team-card-head">
+          <span className="about-Team-number">{Team.number}</span>
+          <span className="about-Team-role">{Team.role}</span>
+        </div>
+        <h3>{Team.name}</h3>
+        <p>{Team.bio}</p>
+        {Team.socialLinks?.length ? (
+          <div className="about-Team-socials" aria-label={`${Team.name} social links`}>
+            {Team.socialLinks.map((link) => (
+              <a key={`${Team.id || Team.name}-${link.label}`} href={link.href} target="_blank" rel="noreferrer">
+                {link.label}
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 function AboutPage({ content, brand }) {
-  const founders = content.founders || [];
-  const carouselFounders = founders.length > 1 ? [...founders, ...founders] : founders;
+  const teamMembers = content.Team || content.Teams || content.founders || [];
+  const Team = teamMembers.filter((Team) => {
+    const name = (Team.name || "").trim();
+    const bio = (Team.bio || "").trim();
+    const image = (Team.image || "").trim();
+    const socialLinks = Team.socialLinks || [];
+    const hasAnything = Boolean(name || bio || image || socialLinks.length || Team.role || Team.number);
+
+    return hasAnything;
+  });
   const carouselRef = useRef(null);
-  const hoveringRef = useRef(false);
-
-  useEffect(() => {
-    const node = carouselRef.current;
-    if (!node || founders.length < 2) return undefined;
-
-    let frameId = 0;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    const tick = () => {
-      if (!reduceMotion && !hoveringRef.current) {
-        const loopPoint = node.scrollWidth / 2;
-        node.scrollLeft += 0.35;
-        if (node.scrollLeft >= loopPoint) {
-          node.scrollLeft = 0;
-        }
-      }
-
-      frameId = window.requestAnimationFrame(tick);
-    };
-
-    frameId = window.requestAnimationFrame(tick);
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [founders.length]);
 
   function scrollCarousel(direction) {
     const node = carouselRef.current;
     if (!node) return;
 
+    const cardWidth = node.querySelector(".about-Team-card")?.getBoundingClientRect().width || 320;
+    const gap = 18;
     node.scrollBy({
-      left: direction * Math.max(node.clientWidth * 0.8, 300),
+      left: direction * (cardWidth + gap),
       behavior: "smooth",
     });
   }
@@ -131,54 +161,27 @@ function AboutPage({ content, brand }) {
         </div>
 
         <div className="about-page-header">
-          <h2>{content.foundersTitle}</h2>
+          <h2>{content.TeamTitle || content.TeamsTitle || content.foundersTitle || "Meet the Team"}</h2>
           <span className="about-page-underline" aria-hidden="true" />
         </div>
-        <div className="about-founder-carousel-shell">
+        <div className="about-Team-carousel-shell">
           <button
             type="button"
             className="about-carousel-arrow about-carousel-arrow-left"
             onClick={() => scrollCarousel(-1)}
-            aria-label="Scroll founders left"
-            disabled={founders.length < 2}
+            aria-label="Scroll Team left"
+            disabled={Team.length < 2}
           >
             <span aria-hidden="true">‹</span>
           </button>
           <div
-            className="about-founder-carousel"
+            className="about-Team-carousel"
             ref={carouselRef}
-            aria-label="Founders carousel"
-            onMouseEnter={() => {
-              hoveringRef.current = true;
-            }}
-            onMouseLeave={() => {
-              hoveringRef.current = false;
-            }}
+            aria-label="Team carousel"
           >
-            <div className="about-founder-track">
-              {carouselFounders.map((founder, index) => (
-                <article className="about-founder-card" key={`${founder.id || founder.name}-${index}`}>
-                  <div className="about-founder-card-media">
-                    <img src={founder.image} alt={founder.name} />
-                  </div>
-                  <div className="about-founder-card-copy">
-                    <div className="about-founder-card-head">
-                      <span className="about-founder-number">{founder.number}</span>
-                      <span className="about-founder-role">{founder.role}</span>
-                    </div>
-                    <h3>{founder.name}</h3>
-                    <p>{founder.bio}</p>
-                    {founder.socialLinks?.length ? (
-                      <div className="about-founder-socials" aria-label={`${founder.name} social links`}>
-                        {founder.socialLinks.map((link) => (
-                          <a key={`${founder.id || founder.name}-${link.label}`} href={link.href} target="_blank" rel="noreferrer">
-                            {link.label}
-                          </a>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                </article>
+            <div className="about-Team-track">
+              {Team.map((Team) => (
+                <TeamCard key={Team.id || Team.name} Team={Team} />
               ))}
             </div>
           </div>
@@ -186,8 +189,8 @@ function AboutPage({ content, brand }) {
             type="button"
             className="about-carousel-arrow about-carousel-arrow-right"
             onClick={() => scrollCarousel(1)}
-            aria-label="Scroll founders right"
-            disabled={founders.length < 2}
+            aria-label="Scroll Team right"
+            disabled={Team.length < 2}
           >
             <span aria-hidden="true">›</span>
           </button>
