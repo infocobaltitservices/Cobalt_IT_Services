@@ -20,12 +20,26 @@ async function cropImageToDataUrl(src, crop) {
   canvas.height = crop.outputHeight;
   const context = canvas.getContext("2d");
 
-  const scaledWidth = image.width * crop.zoom;
-  const scaledHeight = image.height * crop.zoom;
-  const sourceX = clamp((image.width - crop.viewportWidth / crop.zoom) * crop.xPercent, 0, image.width);
-  const sourceY = clamp((image.height - crop.viewportHeight / crop.zoom) * crop.yPercent, 0, image.height);
-  const sourceWidth = Math.min(image.width - sourceX, crop.viewportWidth / crop.zoom);
-  const sourceHeight = Math.min(image.height - sourceY, crop.viewportHeight / crop.zoom);
+  const targetAspect = crop.outputWidth / crop.outputHeight;
+  const imageAspect = image.width / image.height;
+
+  let baseSourceWidth;
+  let baseSourceHeight;
+
+  if (imageAspect > targetAspect) {
+    baseSourceHeight = image.height;
+    baseSourceWidth = image.height * targetAspect;
+  } else {
+    baseSourceWidth = image.width;
+    baseSourceHeight = image.width / targetAspect;
+  }
+
+  const sourceWidth = Math.min(image.width, baseSourceWidth / crop.zoom);
+  const sourceHeight = Math.min(image.height, baseSourceHeight / crop.zoom);
+  const maxSourceX = Math.max(image.width - sourceWidth, 0);
+  const maxSourceY = Math.max(image.height - sourceHeight, 0);
+  const sourceX = clamp(maxSourceX * crop.xPercent, 0, maxSourceX);
+  const sourceY = clamp(maxSourceY * crop.yPercent, 0, maxSourceY);
 
   context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.92);
@@ -60,11 +74,8 @@ function ImageCropModal({ isOpen, onClose, onSave, aspect = 1, outputWidth = 120
   const viewportStyle = useMemo(
     () => ({
       aspectRatio: `${aspect}`,
-      backgroundImage: source ? `url(${source})` : "none",
-      backgroundSize: `${zoom * 100}%`,
-      backgroundPosition: `${xPercent * 100}% ${yPercent * 100}%`,
     }),
-    [aspect, source, zoom, xPercent, yPercent]
+    [aspect]
   );
 
   if (!isOpen) {
@@ -123,7 +134,19 @@ function ImageCropModal({ isOpen, onClose, onSave, aspect = 1, outputWidth = 120
           </label>
 
           <div className={`admin-crop-preview ${source ? "has-image" : ""}`} style={viewportStyle}>
-            {!source && <span>Select an image to start cropping</span>}
+            {source ? (
+              <img
+                className="admin-crop-preview-image"
+                src={source}
+                alt="Crop preview"
+                style={{
+                  transform: `scale(${zoom})`,
+                  objectPosition: `${xPercent * 100}% ${yPercent * 100}%`,
+                }}
+              />
+            ) : (
+              <span>Select an image to start cropping</span>
+            )}
           </div>
 
           <div className="admin-crop-controls">

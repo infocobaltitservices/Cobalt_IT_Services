@@ -57,12 +57,34 @@ function normalizeAboutSection(about) {
   };
 }
 
+function normalizeServiceImages(services) {
+  return (services || []).map((service) => {
+    if (service.heroImage) return service;
+
+    const fallbackImageByIcon = {
+      gpu: "/images/gpu-quiz-tab.avif",
+      marketing: "/images/Digital-Marketing-1-1.webp",
+      printing: "/images/3d.webp",
+      infrastructure: "/images/images.jpg",
+    };
+
+    return {
+      ...service,
+      heroImage: fallbackImageByIcon[service.icon] || "/images/images.jpg",
+    };
+  });
+}
+
 function normalizeSiteContent(content) {
   const next = content || defaultSiteContent;
   return {
     ...next,
     about: normalizeAboutSection(next.about),
     faq: next.faq || defaultSiteContent.faq,
+    services: {
+      ...(next.services || defaultSiteContent.services),
+      items: normalizeServiceImages(next.services?.items || defaultSiteContent.services.items),
+    },
   };
 }
 

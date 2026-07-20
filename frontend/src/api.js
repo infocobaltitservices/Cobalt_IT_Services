@@ -7,6 +7,29 @@ function getAdminHeaders() {
   return key ? { "x-admin-key": key } : {};
 }
 
+function dataUrlToFile(dataUrl, fileName = "upload.jpg") {
+  const [header, base64Data] = String(dataUrl).split(",");
+  const mimeMatch = header?.match(/data:([^;]+);base64/);
+  const mimeType = mimeMatch?.[1] || "image/jpeg";
+  const binaryString = atob(base64Data || "");
+  const bytes = new Uint8Array(binaryString.length);
+
+  for (let index = 0; index < binaryString.length; index += 1) {
+    bytes[index] = binaryString.charCodeAt(index);
+  }
+
+  return new File([bytes], fileName, { type: mimeType });
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export async function getSiteMeta() {
   const [navigationRes, healthRes] = await Promise.all([
     fetch(`${API_BASE}/api/navigation`),
@@ -43,7 +66,40 @@ export async function submitInquiry(payload) {
   });
 
   if (!response.ok) {
-    throw new Error("Inquiry submission failed");
+    const error = await response.json().catch(() => ({}));
+    const inquiryError = new Error(error.message || "Inquiry submission failed");
+    inquiryError.fields = error.fields || {};
+    throw inquiryError;
+  }
+
+  return response.json();
+}
+
+export async function getAdminInquiries() {
+  const response = await fetch(`${API_BASE}/api/admin/inquiries`, {
+    headers: {
+      ...getAdminHeaders(),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to load admin inquiries");
+  }
+
+  return response.json();
+}
+
+export async function deleteAdminInquiry(inquiryId) {
+  const response = await fetch(`${API_BASE}/api/admin/inquiries/${inquiryId}`, {
+    method: "DELETE",
+    headers: {
+      ...getAdminHeaders(),
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || "Failed to delete inquiry");
   }
 
   return response.json();
@@ -123,21 +179,8 @@ export async function saveAdminSiteContent(payload) {
 }
 
 export async function uploadAdminImage(imageData, folder = "cobalt-admin") {
-  const response = await fetch(`${API_BASE}/api/admin/upload-image`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAdminHeaders(),
-    },
-    body: JSON.stringify({ imageData, folder }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || "Image upload failed");
-  }
-
-  return response.json();
+  const file = dataUrlToFile(imageData, `${folder.replaceAll("/", "-")}.jpg`);
+  return uploadAdminMedia(file, folder);
 }
 
 export async function uploadAdminMedia(file, folder = "cobalt-admin") {
@@ -146,13 +189,19 @@ export async function uploadAdminMedia(file, folder = "cobalt-admin") {
   formData.append("folder", folder);
   formData.append("resourceType", file.type.startsWith("video/") ? "video" : "image");
 
-  const response = await fetch(`${API_BASE}/api/admin/upload-media`, {
-    method: "POST",
-    headers: {
-      ...getAdminHeaders(),
-    },
-    body: formData,
-  });
+  const sendMediaUpload = (url, body, useFormData) =>
+    fetch(url, {
+      method: "POST",
+      headers: useFormData ? { ...getAdminHeaders() } : { "Content-Type": "application/json", ...getAdminHeaders() },
+      body,
+    });
+
+  let response = await sendMediaUpload(`${API_BASE}/api/admin/upload-media`, formData, true);
+
+  if (response.status === 404 && file.type.startsWith("image/")) {
+    const imageData = await fileToDataUrl(file);
+    response = await sendMediaUpload(`${API_BASE}/api/admin/upload-image`, JSON.stringify({ imageData, folder }), false);
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));

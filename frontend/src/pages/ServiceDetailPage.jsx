@@ -17,6 +17,8 @@ function ServiceDetailPage({ service }) {
     );
   }
 
+  const heroImage = (service.heroImage || "").trim();
+
   return (
     <section className="section service-detail-page">
       <div className="service-detail-shell">
@@ -39,10 +41,14 @@ function ServiceDetailPage({ service }) {
             </div>
           </div>
 
-          <div className="service-detail-icon-panel" aria-hidden="true">
-            <span className={`service-icon-tile service-icon-tile-large icon-${service.icon}`}>
-              <ServiceIcon kind={service.icon} />
-            </span>
+          <div className="service-detail-image-panel" aria-hidden="true">
+            {heroImage ? (
+              <img className="service-detail-image" src={heroImage} alt="" />
+            ) : (
+              <span className={`service-icon-tile service-icon-tile-large icon-${service.icon}`}>
+                <ServiceIcon kind={service.icon} />
+              </span>
+            )}
           </div>
         </div>
 

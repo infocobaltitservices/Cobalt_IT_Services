@@ -239,6 +239,7 @@ export const defaultSiteContent = {
         shortText: "High-performance compute for AI, ML, rendering, and research workloads.",
         icon: "gpu",
         heroLabel: "Accelerated Compute",
+        heroImage: "/images/gpu-quiz-tab.avif",
         intro:
           "Elastic GPU infrastructure designed for training, simulation, rendering, and burst-heavy compute without the cost of managing hardware internally.",
         highlights: [
@@ -261,6 +262,7 @@ export const defaultSiteContent = {
         shortText: "Blue-print growth systems, campaigns, SEO, and conversion strategy.",
         icon: "marketing",
         heroLabel: "Growth Systems",
+        heroImage: "/images/Digital-Marketing-1-1.webp",
         intro:
           "A strategy-led digital marketing service that combines content, campaign planning, SEO, analytics, and conversion thinking into one focused growth engine.",
         highlights: [
@@ -283,6 +285,7 @@ export const defaultSiteContent = {
         shortText: "Concept-to-production visual manufacturing and prototyping.",
         icon: "printing",
         heroLabel: "Rapid Prototyping",
+        heroImage: "/images/3d.webp",
         intro:
           "Rapid prototyping and production-support workflows for Team that need physical concepts, test models, presentation pieces, or pre-manufacturing validation.",
         highlights: [
@@ -305,6 +308,7 @@ export const defaultSiteContent = {
         shortText: "Secure, scalable systems with management and uptime visibility.",
         icon: "infrastructure",
         heroLabel: "Secure Operations",
+        heroImage: "/images/images.jpg",
         intro:
           "Reliable IT infrastructure support for organizations that need stable systems, cleaner visibility, better uptime, and confident day-to-day operations.",
         highlights: [

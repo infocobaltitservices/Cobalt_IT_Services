@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  deleteAdminInquiry,
   getAdminAccessKey,
   getAdminEmail,
+  getAdminInquiries,
   getAdminSiteContent,
   loginAdmin,
   logoutAdmin,
@@ -102,6 +104,31 @@ function createId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function formatInquiryDate(value) {
+  if (!value) return "Unknown time";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown time";
+
+  return new Intl.DateTimeFormat("en-US", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+function AdminImagePreview({ src, alt, wide = false }) {
+  const imageSrc = (src || "").trim();
+
+  if (!imageSrc) {
+    return (
+      <div className={`admin-thumb admin-thumb-empty${wide ? " admin-thumb-wide" : ""}`}>
+        <span>No image</span>
+      </div>
+    );
+  }
+
+  return <img className={`admin-thumb${wide ? " admin-thumb-wide" : ""}`} src={imageSrc} alt={alt} />;
+}
+
 function createServiceDraft(overrides = {}) {
   return {
     id: createId("service"),
@@ -110,6 +137,7 @@ function createServiceDraft(overrides = {}) {
     shortText: "",
     icon: "gpu",
     heroLabel: "Service Label",
+    heroImage: "",
     intro: "",
     highlights: [],
     deliverables: [],
@@ -140,10 +168,31 @@ function normalizeFaqSection(faq) {
   };
 }
 
+function normalizeServiceImages(services) {
+  return (services || []).map((service) => {
+    if (service.heroImage) return service;
+
+    const fallbackImageByIcon = {
+      gpu: "/images/gpu-quiz-tab.avif",
+      marketing: "/images/Digital-Marketing-1-1.webp",
+      printing: "/images/3d.webp",
+      infrastructure: "/images/images.jpg",
+    };
+
+    return {
+      ...service,
+      heroImage: fallbackImageByIcon[service.icon] || "/images/images.jpg",
+    };
+  });
+}
+
 function normalizeContentDraft(content) {
   const next = clone(content || defaultSiteContent);
   next.about = normalizeAboutMembers(next.about);
   next.faq = normalizeFaqSection(next.faq);
+  if (next.services?.items) {
+    next.services = { ...(next.services || {}), items: normalizeServiceImages(next.services.items) };
+  }
   return next;
 }
 
@@ -164,19 +213,25 @@ const adminSections = [
   { id: "services", label: "Services" },
   { id: "gallery", label: "Gallery" },
   { id: "contact", label: "Contact" },
+  { id: "enquiries", label: "Enquiries" },
   { id: "faq", label: "FAQ" },
   { id: "testimonials", label: "Testimonials" },
   { id: "legal", label: "Legal" },
 ];
 
 function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
-  const [draft, setDraft] = useState(normalizeContentDraft(initialContent || defaultSiteContent));
+  const [draft, setDraft] = useState(() => normalizeContentDraft(initialContent || defaultSiteContent));
+  const draftRef = useRef(draft);
   const [status, setStatus] = useState("idle");
   const [activeSection, setActiveSection] = useState("overview");
   const [activeServiceIndex, setActiveServiceIndex] = useState(0);
   const [loginForm, setLoginForm] = useState({ email: getAdminEmail(), password: "" });
   const [authenticated, setAuthenticated] = useState(Boolean(getAdminAccessKey()));
   const [cropConfig, setCropConfig] = useState(null);
+  const [inquiries, setInquiries] = useState([]);
+  const [inquiryStatus, setInquiryStatus] = useState("idle");
+  const [inquirySearch, setInquirySearch] = useState("");
+  const [deletingInquiryId, setDeletingInquiryId] = useState("");
 
   const overviewStats = useMemo(
     () => [
@@ -185,15 +240,67 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
       { label: "Gallery Items", value: draft.gallery?.items?.length || 0 },
       { label: "FAQ Items", value: draft.faq?.items?.length || 0 },
       { label: "Testimonials", value: draft.testimonials?.items?.length || 0 },
+      { label: "Enquiries", value: inquiries.length },
       { label: "Footer Columns", value: draft.footer?.columns?.length || 0 },
       { label: "Hero Slides", value: draft.home?.heroTitleLines?.length || 0 },
       { label: "Delivery Steps", value: draft.home?.deliverySteps?.length || 0 },
     ],
-    [draft]
+    [draft, inquiries.length]
   );
 
+  const visibleInquiries = useMemo(() => {
+    const query = inquirySearch.trim().toLowerCase();
+
+    if (!query) return inquiries;
+
+    return inquiries.filter((inquiry) =>
+      [inquiry.name, inquiry.email, inquiry.phone, inquiry.company, inquiry.message]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [inquiries, inquirySearch]);
+
   function syncDraft(nextDraft) {
+    draftRef.current = nextDraft;
     setDraft(nextDraft);
+  }
+
+  async function loadInquiries() {
+    setInquiryStatus("loading");
+    try {
+      const content = await getAdminInquiries();
+      setInquiries(content.items || []);
+      setInquiryStatus("loaded");
+    } catch (error) {
+      setInquiryStatus(error.message || "error");
+    }
+  }
+
+  async function handleDeleteInquiry(inquiry) {
+    const inquiryId = inquiry?._id;
+
+    if (!inquiryId) {
+      setInquiryStatus("Unable to delete this inquiry");
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete enquiry from ${inquiry.name || inquiry.email || "this contact"}?`);
+    if (!confirmed) return;
+
+    setDeletingInquiryId(inquiryId);
+    setInquiryStatus("deleting");
+
+    try {
+      await deleteAdminInquiry(inquiryId);
+      setInquiries((items) => items.filter((item) => item._id !== inquiryId));
+      setInquiryStatus("deleted");
+    } catch (error) {
+      setInquiryStatus(error.message || "delete-error");
+    } finally {
+      setDeletingInquiryId("");
+    }
   }
 
   async function handleLogin(event) {
@@ -215,6 +322,7 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
     try {
       const content = await getAdminSiteContent();
       syncDraft(normalizeContentDraft(content));
+      await loadInquiries();
       setStatus("loaded");
     } catch (error) {
       setStatus(error.message || "refresh-error");
@@ -224,7 +332,7 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
   async function handleSave() {
     setStatus("saving");
     try {
-      const payload = normalizeContentDraft(draft);
+      const payload = normalizeContentDraft(draftRef.current);
       const saved = await saveAdminSiteContent(payload);
       syncDraft(normalizeContentDraft(saved));
       onContentSaved(normalizeContentDraft(saved));
@@ -239,7 +347,7 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
     setStatus("uploading-media");
     try {
       const uploaded = await uploadAdminImage(dataUrl, cropConfig.folder);
-      const nextDraft = normalizeContentDraft(draft);
+      const nextDraft = normalizeContentDraft(draftRef.current);
       cropConfig.apply(nextDraft, uploaded.url);
       const saved = await saveAdminSiteContent(nextDraft);
       syncDraft(normalizeContentDraft(saved));
@@ -256,7 +364,7 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
     setStatus("uploading-media");
     try {
       const uploaded = await uploadAdminMedia(file, folder);
-      const nextDraft = normalizeContentDraft(draft);
+      const nextDraft = normalizeContentDraft(draftRef.current);
       apply(nextDraft, uploaded.url);
       const saved = await saveAdminSiteContent(nextDraft);
       syncDraft(normalizeContentDraft(saved));
@@ -278,7 +386,15 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
     setAuthenticated(false);
     setLoginForm((prev) => ({ ...prev, password: "" }));
     setStatus("logged-out");
+    setInquiries([]);
+    setInquiryStatus("idle");
+    setInquirySearch("");
   }
+
+  useEffect(() => {
+    if (!authenticated) return;
+    loadInquiries();
+  }, [authenticated]);
 
   if (!authenticated) {
     return (
@@ -450,7 +566,7 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
                 </label>
               </div>
               <div className="admin-inline-actions">
-                <img className="admin-thumb" src={draft.brand.logoUrl} alt="Brand logo" />
+                <AdminImagePreview src={draft.brand.logoUrl} alt="Brand logo" />
                 <button
                   type="button"
                   className="btn secondary"
@@ -748,7 +864,7 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
                         />
                       </label>
                       <div className="admin-inline-actions">
-                        <img className="admin-thumb admin-thumb-wide" src={item.image} alt={item.title} />
+                        <AdminImagePreview src={item.image} alt={item.title} wide />
                         <button
                           type="button"
                           className="btn secondary"
@@ -899,7 +1015,7 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
                         />
                       </label>
                       <div className="admin-inline-actions">
-                        <img className="admin-thumb admin-thumb-wide" src={Team.image} alt={Team.name} />
+                        <AdminImagePreview src={Team.image} alt={Team.name} wide />
                         <button
                           type="button"
                           className="btn secondary"
@@ -1008,9 +1124,7 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
                           <span className="admin-page-kicker">Live preview</span>
                           <h3>{service.title}</h3>
                         </div>
-                        <span className={`service-icon-tile icon-${service.icon}`} aria-hidden="true">
-                          <span className="admin-service-preview-mark">{service.heroLabel?.slice(0, 2).toUpperCase() || "SV"}</span>
-                        </span>
+                        <AdminImagePreview src={service.heroImage} alt={service.title} wide />
                       </div>
                       <p>{service.shortText}</p>
                       <div className="admin-service-preview-meta">
@@ -1101,6 +1215,30 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
                             <option value="infrastructure">Infrastructure</option>
                           </select>
                         </label>
+                      </div>
+
+                      <div className="admin-inline-actions">
+                        <AdminImagePreview src={service.heroImage} alt={service.title} wide />
+                        <button
+                          type="button"
+                          className="btn secondary"
+                          onClick={() =>
+                            launchCropper({
+                              folder: "cobalt/services",
+                              aspect: 16 / 9,
+                              outputWidth: 1600,
+                              outputHeight: 900,
+                              apply: (nextDraft, imageUrl) => {
+                                nextDraft.services.items = updateItem(nextDraft.services.items, activeServiceIndex, {
+                                  ...nextDraft.services.items[activeServiceIndex],
+                                  heroImage: imageUrl,
+                                });
+                              },
+                            })
+                          }
+                        >
+                          Upload service image
+                        </button>
                       </div>
 
                       <div className="admin-form-grid admin-form-grid-two">
@@ -1244,7 +1382,7 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
                       />
                     </label>
                     <div className="admin-inline-actions">
-                      <img className="admin-thumb admin-thumb-wide" src={item.image} alt={item.title} />
+                      <AdminImagePreview src={item.image} alt={item.title} wide />
                       <button
                         type="button"
                         className="btn secondary"
@@ -1306,6 +1444,118 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
                 <textarea rows="4" value={draft.contact.description} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, description: event.target.value } })} />
               </label>
             </article>
+          )}
+
+          {activeSection === "enquiries" && (
+            <div className="admin-section-stack">
+              <article className="admin-board admin-board-soft">
+                <div className="admin-board-head-row">
+                  <div>
+                    <span className="admin-page-kicker">Contact desk</span>
+                    <h3>Enquiry inbox</h3>
+                    <p className="admin-board-subtitle">Review contact submissions, reply quickly, and remove enquiries after they are handled.</p>
+                  </div>
+                  <div className="admin-inline-actions">
+                    <button type="button" className="btn secondary" onClick={loadInquiries} disabled={inquiryStatus === "loading"}>
+                      {inquiryStatus === "loading" ? "Refreshing..." : "Refresh inbox"}
+                    </button>
+                  </div>
+                </div>
+                <div className="admin-overview-grid admin-enquiry-stats">
+                  <div className="admin-overview-card">
+                    <strong>{inquiries.length}</strong>
+                    <span>Total enquiries</span>
+                  </div>
+                  <div className="admin-overview-card">
+                    <strong>{inquiries[0]?.name || "None"}</strong>
+                    <span>Latest sender</span>
+                  </div>
+                  <div className="admin-overview-card">
+                    <strong>{formatInquiryDate(inquiries[0]?.createdAt)}</strong>
+                    <span>Latest inquiry</span>
+                  </div>
+                </div>
+                <div className="admin-inquiry-toolbar">
+                  <label className="admin-search-field">
+                    <span>Search enquiries</span>
+                    <input
+                      value={inquirySearch}
+                      onChange={(event) => setInquirySearch(event.target.value)}
+                      placeholder="Search by name, email, phone, company, or message"
+                    />
+                  </label>
+                  <span className="admin-status-pill admin-status-pill-inline">
+                    <span>Showing</span>
+                    <strong>
+                      {visibleInquiries.length} / {inquiries.length}
+                    </strong>
+                  </span>
+                </div>
+              </article>
+
+              {visibleInquiries.length > 0 ? (
+                <div className="admin-inquiry-list">
+                  {visibleInquiries.map((inquiry) => (
+                    <article className="admin-board admin-board-soft admin-inquiry-card" key={inquiry._id || `${inquiry.email}-${inquiry.createdAt}`}>
+                      <div className="admin-inquiry-head">
+                        <div className="admin-inquiry-person">
+                          <div className="admin-inquiry-avatar" aria-hidden="true">
+                            {(inquiry.name || inquiry.email || "?").trim().charAt(0).toUpperCase() || "?"}
+                          </div>
+                          <div>
+                            <span className="admin-page-kicker">New enquiry</span>
+                            <h3>{inquiry.name || "Unnamed contact"}</h3>
+                            <p className="admin-board-subtitle">{formatInquiryDate(inquiry.createdAt)}</p>
+                          </div>
+                        </div>
+                        <div className="admin-inquiry-actions">
+                          {inquiry.email && (
+                            <a href={`mailto:${inquiry.email}`} className="btn secondary">
+                              Reply
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            className="btn danger"
+                            onClick={() => handleDeleteInquiry(inquiry)}
+                            disabled={deletingInquiryId === inquiry._id}
+                          >
+                            {deletingInquiryId === inquiry._id ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                      <dl className="admin-inquiry-details">
+                        <div>
+                          <dt>Email</dt>
+                          <dd>{inquiry.email ? <a href={`mailto:${inquiry.email}`}>{inquiry.email}</a> : "Not provided"}</dd>
+                        </div>
+                        <div>
+                          <dt>Phone</dt>
+                          <dd>{inquiry.phone ? <a href={`tel:${inquiry.phone}`}>{inquiry.phone}</a> : "Not provided"}</dd>
+                        </div>
+                        <div>
+                          <dt>Company</dt>
+                          <dd>{inquiry.company || "Not provided"}</dd>
+                        </div>
+                      </dl>
+                      <div className="admin-inquiry-message">
+                        <strong>Message</strong>
+                        <p>{inquiry.message || "No message provided."}</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <article className="admin-board admin-board-soft admin-inquiry-empty">
+                  <h3>{inquiries.length > 0 ? "No matching enquiries" : "No enquiries yet"}</h3>
+                  <p className="admin-board-subtitle">
+                    {inquiries.length > 0
+                      ? "Try another search term or clear the search field to see all submissions."
+                      : "When someone submits the contact form, the inquiry will show up here automatically."}
+                  </p>
+                </article>
+              )}
+            </div>
           )}
 
           {activeSection === "faq" && (
