@@ -1,6 +1,8 @@
 import nodemailer from "nodemailer";
 
 function getMailConfig() {
+  const url = process.env.SMTP_URL;
+  const service = process.env.SMTP_SERVICE;
   const host = process.env.SMTP_HOST;
   const port = Number(process.env.SMTP_PORT || 587);
   const secure = String(process.env.SMTP_SECURE || "").toLowerCase() === "true" || port === 465;
@@ -8,11 +10,17 @@ function getMailConfig() {
   const pass = process.env.SMTP_PASS;
   const from = process.env.MAIL_FROM || user || process.env.COMPANY_EMAIL;
 
-  if (!host || !user || !pass || !from) {
+  if (!from) {
+    return null;
+  }
+
+  if (!url && (!host || !user || !pass)) {
     return null;
   }
 
   return {
+    url: url || null,
+    service: service || null,
     host,
     port,
     secure,
@@ -34,13 +42,29 @@ export function hasMailConfig() {
 function createTransport() {
   const config = getMailConfig();
   if (!config) return null;
+
+  const transportOptions = config.url
+    ? { url: config.url }
+    : {
+        host: config.host,
+        port: config.port,
+        secure: config.secure,
+        auth: config.auth,
+      };
+
+  if (config.service) {
+    transportOptions.service = config.service;
+    delete transportOptions.host;
+    delete transportOptions.port;
+    delete transportOptions.secure;
+  }
+
+  if (String(process.env.SMTP_ALLOW_SELF_SIGNED_CERTS || "").toLowerCase() === "true") {
+    transportOptions.tls = { rejectUnauthorized: false };
+  }
+
   return {
-    transport: nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: config.auth,
-    }),
+    transport: nodemailer.createTransport(transportOptions),
     config,
   };
 }
@@ -106,6 +130,7 @@ function escapeHtml(value) {
 export async function sendInquiryEmails(inquiry) {
   const session = createTransport();
   if (!session) {
+    console.warn("Mail disabled: SMTP env vars are incomplete");
     return { enabled: false, replySent: false, notificationSent: false };
   }
 
@@ -137,6 +162,20 @@ export async function sendInquiryEmails(inquiry) {
     replyMail ? transport.sendMail(replyMail) : Promise.resolve(null),
     supportEmail ? transport.sendMail(notificationMail) : Promise.resolve(null),
   ]);
+
+  if (replyResult.status === "rejected") {
+    console.error("Inquiry reply email failed", {
+      to: inquiry.email,
+      error: replyResult.reason?.message || replyResult.reason,
+    });
+  }
+
+  if (notificationResult.status === "rejected") {
+    console.error("Inquiry notification email failed", {
+      to: supportEmail,
+      error: notificationResult.reason?.message || notificationResult.reason,
+    });
+  }
 
   return {
     enabled: true,

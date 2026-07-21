@@ -96,6 +96,71 @@ function linesToFooterSocialLinks(value) {
     .filter((item) => item.label || item.href || item.icon);
 }
 
+function normalizeContactSection(contact) {
+  const fallback = defaultSiteContent.contact;
+
+  return {
+    ...(fallback || {}),
+    ...(contact || {}),
+    heading: contact?.heading || fallback.heading,
+    text: contact?.text || fallback.text,
+    eyebrow: contact?.eyebrow || fallback.eyebrow,
+    title: contact?.title || fallback.title,
+    description: contact?.description || fallback.description,
+    infoCards: contact?.infoCards?.length ? contact.infoCards : fallback.infoCards,
+    channelsTitle: contact?.channelsTitle || fallback.channelsTitle,
+    channels: contact?.channels?.length ? contact.channels : fallback.channels,
+    mapTitle: contact?.mapTitle || fallback.mapTitle,
+    mapLabel: contact?.mapLabel || fallback.mapLabel,
+    mapQuery: contact?.mapQuery || fallback.mapQuery,
+  };
+}
+
+function updateContactInfoCards(contact, updater) {
+  const nextContact = { ...(contact || {}) };
+  nextContact.infoCards = updater([...(nextContact.infoCards || [])]);
+  return nextContact;
+}
+
+function updateContactChannels(contact, updater) {
+  const nextContact = { ...(contact || {}) };
+  nextContact.channels = updater([...(nextContact.channels || [])]);
+  return nextContact;
+}
+
+function getWhatsAppDigits(channels) {
+  const channel = (channels || []).find((item) => String(item.label || "").trim().toLowerCase() === "whatsapp");
+  const href = String(channel?.href || "");
+  const match = href.match(/wa\.me\/(\d+)/i) || href.match(/(?:phone=|\/)(\d{7,15})/i);
+  return match?.[1] || "";
+}
+
+function setWhatsAppChannel(channels, value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  const nextChannels = [...(channels || [])];
+  const channelIndex = nextChannels.findIndex((item) => String(item.label || "").trim().toLowerCase() === "whatsapp");
+
+  if (!digits) {
+    if (channelIndex >= 0) {
+      nextChannels.splice(channelIndex, 1);
+    }
+    return nextChannels;
+  }
+
+  const nextChannel = {
+    label: "WhatsApp",
+    href: `https://wa.me/${digits}`,
+  };
+
+  if (channelIndex >= 0) {
+    nextChannels[channelIndex] = { ...nextChannels[channelIndex], ...nextChannel };
+    return nextChannels;
+  }
+
+  nextChannels.push(nextChannel);
+  return nextChannels;
+}
+
 function updateItem(list, index, nextItem) {
   return list.map((item, itemIndex) => (itemIndex === index ? nextItem : item));
 }
@@ -190,6 +255,7 @@ function normalizeContentDraft(content) {
   const next = clone(content || defaultSiteContent);
   next.about = normalizeAboutMembers(next.about);
   next.faq = normalizeFaqSection(next.faq);
+  next.contact = normalizeContactSection(next.contact);
   if (next.services?.items) {
     next.services = { ...(next.services || {}), items: normalizeServiceImages(next.services.items) };
   }
@@ -1419,31 +1485,252 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
           )}
 
           {activeSection === "contact" && (
-            <article className="admin-board admin-board-soft">
-              <h3>Contact page</h3>
-              <div className="admin-form-grid">
+            <div className="admin-section-stack">
+              <article className="admin-board admin-board-soft">
+                <h3>Contact page</h3>
+                <div className="admin-form-grid">
+                  <label>
+                    Heading
+                    <input value={draft.contact.heading} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, heading: event.target.value } })} />
+                  </label>
+                  <label>
+                    Eyebrow
+                    <input value={draft.contact.eyebrow} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, eyebrow: event.target.value } })} />
+                  </label>
+                  <label>
+                    Title
+                    <input value={draft.contact.title} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, title: event.target.value } })} />
+                  </label>
+                  <label>
+                    Channels title
+                    <input value={draft.contact.channelsTitle || ""} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, channelsTitle: event.target.value } })} />
+                  </label>
+                  <label>
+                    Map title
+                    <input value={draft.contact.mapTitle || ""} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, mapTitle: event.target.value } })} />
+                  </label>
+                  <label>
+                    Map label
+                    <input value={draft.contact.mapLabel} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, mapLabel: event.target.value } })} />
+                  </label>
+                  <label>
+                    Map query
+                    <input value={draft.contact.mapQuery || ""} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, mapQuery: event.target.value } })} />
+                  </label>
+                </div>
                 <label>
-                  Heading
-                  <input value={draft.contact.heading} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, heading: event.target.value } })} />
+                  Description
+                  <textarea rows="4" value={draft.contact.description} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, description: event.target.value } })} />
                 </label>
-                <label>
-                  Eyebrow
-                  <input value={draft.contact.eyebrow} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, eyebrow: event.target.value } })} />
-                </label>
-                <label>
-                  Title
-                  <input value={draft.contact.title} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, title: event.target.value } })} />
-                </label>
-                <label>
-                  Map label
-                  <input value={draft.contact.mapLabel} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, mapLabel: event.target.value } })} />
-                </label>
-              </div>
-              <label>
-                Description
-                <textarea rows="4" value={draft.contact.description} onChange={(event) => syncDraft({ ...draft, contact: { ...draft.contact, description: event.target.value } })} />
-              </label>
-            </article>
+              </article>
+
+              <article className="admin-board admin-board-soft">
+                <div className="admin-board-head-row">
+                  <div>
+                    <h3>Contact info cards</h3>
+                    <p className="admin-board-subtitle">Edit the public phone, email, location, and response details shown on the contact page.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => {
+                      const next = clone(draft);
+                      next.contact = updateContactInfoCards(next.contact, (cards) => [...cards, { type: "text", label: "New detail", value: "", href: "" }]);
+                      syncDraft(next);
+                    }}
+                  >
+                    Add info card
+                  </button>
+                </div>
+                <div className="admin-stack">
+                  {(draft.contact.infoCards || []).map((card, index) => (
+                    <div className="admin-repeater-card" key={`${card.label || "card"}-${index}`}>
+                      <div className="admin-form-grid admin-form-grid-two">
+                        <label>
+                          Type
+                          <select
+                            value={card.type || "text"}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.contact = updateContactInfoCards(next.contact, (cards) =>
+                                updateItem(cards, index, {
+                                  ...card,
+                                  type: event.target.value,
+                                })
+                              );
+                              syncDraft(next);
+                            }}
+                          >
+                            <option value="text">Text</option>
+                            <option value="link">Link</option>
+                          </select>
+                        </label>
+                        <label>
+                          Label
+                          <input
+                            value={card.label || ""}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.contact = updateContactInfoCards(next.contact, (cards) =>
+                                updateItem(cards, index, {
+                                  ...card,
+                                  label: event.target.value,
+                                })
+                              );
+                              syncDraft(next);
+                            }}
+                            placeholder="Phone"
+                          />
+                        </label>
+                        <label>
+                          Value
+                          <input
+                            value={card.value || ""}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.contact = updateContactInfoCards(next.contact, (cards) =>
+                                updateItem(cards, index, {
+                                  ...card,
+                                  value: event.target.value,
+                                })
+                              );
+                              syncDraft(next);
+                            }}
+                            placeholder="+91 81928 95488"
+                          />
+                        </label>
+                        <label>
+                          Link target
+                          <input
+                            value={card.href || ""}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.contact = updateContactInfoCards(next.contact, (cards) =>
+                                updateItem(cards, index, {
+                                  ...card,
+                                  href: event.target.value,
+                                })
+                              );
+                              syncDraft(next);
+                            }}
+                            placeholder="tel:+918192895488"
+                          />
+                        </label>
+                      </div>
+                      <div className="admin-inline-actions">
+                        <button
+                          type="button"
+                          className="btn secondary"
+                          onClick={() => {
+                            const next = clone(draft);
+                            next.contact = updateContactInfoCards(next.contact, (cards) => cards.filter((_, itemIndex) => itemIndex !== index));
+                            syncDraft(next);
+                          }}
+                        >
+                          Delete card
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+
+              <article className="admin-board admin-board-soft">
+                <div className="admin-board-head-row">
+                  <div>
+                    <h3>Digital channels</h3>
+                    <p className="admin-board-subtitle">Update the public social and WhatsApp links independently from the info cards.</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => {
+                      const next = clone(draft);
+                      next.contact = updateContactChannels(next.contact, (channels) => [...channels, { label: "New Channel", href: "" }]);
+                      syncDraft(next);
+                    }}
+                  >
+                    Add channel
+                  </button>
+                </div>
+                <div className="admin-form-grid">
+                  <label>
+                    WhatsApp number
+                    <input
+                      value={getWhatsAppDigits(draft.contact.channels || [])}
+                      onChange={(event) => {
+                        const next = clone(draft);
+                        next.contact = {
+                          ...next.contact,
+                          channels: setWhatsAppChannel(next.contact.channels || [], event.target.value),
+                        };
+                        syncDraft(next);
+                      }}
+                      placeholder="+91 81928 95488"
+                    />
+                  </label>
+                  <label>
+                    Channels title preview
+                    <input value={draft.contact.channelsTitle || ""} readOnly />
+                  </label>
+                </div>
+                <div className="admin-stack">
+                  {(draft.contact.channels || []).map((channel, index) => (
+                    <div className="admin-repeater-card" key={`${channel.label || "channel"}-${index}`}>
+                      <div className="admin-form-grid admin-form-grid-two">
+                        <label>
+                          Label
+                          <input
+                            value={channel.label || ""}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.contact = updateContactChannels(next.contact, (channels) =>
+                                updateItem(channels, index, {
+                                  ...channel,
+                                  label: event.target.value,
+                                })
+                              );
+                              syncDraft(next);
+                            }}
+                            placeholder="LinkedIn"
+                          />
+                        </label>
+                        <label>
+                          Link
+                          <input
+                            value={channel.href || ""}
+                            onChange={(event) => {
+                              const next = clone(draft);
+                              next.contact = updateContactChannels(next.contact, (channels) =>
+                                updateItem(channels, index, {
+                                  ...channel,
+                                  href: event.target.value,
+                                })
+                              );
+                              syncDraft(next);
+                            }}
+                            placeholder="https://www.linkedin.com"
+                          />
+                        </label>
+                      </div>
+                      <div className="admin-inline-actions">
+                        <button
+                          type="button"
+                          className="btn secondary"
+                          onClick={() => {
+                            const next = clone(draft);
+                            next.contact = updateContactChannels(next.contact, (channels) => channels.filter((_, itemIndex) => itemIndex !== index));
+                            syncDraft(next);
+                          }}
+                        >
+                          Delete channel
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            </div>
           )}
 
           {activeSection === "enquiries" && (
@@ -1494,56 +1781,51 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
               </article>
 
               {visibleInquiries.length > 0 ? (
-                <div className="admin-inquiry-list">
-                  {visibleInquiries.map((inquiry) => (
-                    <article className="admin-board admin-board-soft admin-inquiry-card" key={inquiry._id || `${inquiry.email}-${inquiry.createdAt}`}>
-                      <div className="admin-inquiry-head">
-                        <div className="admin-inquiry-person">
-                          <div className="admin-inquiry-avatar" aria-hidden="true">
-                            {(inquiry.name || inquiry.email || "?").trim().charAt(0).toUpperCase() || "?"}
-                          </div>
-                          <div>
-                            <span className="admin-page-kicker">New enquiry</span>
-                            <h3>{inquiry.name || "Unnamed contact"}</h3>
-                            <p className="admin-board-subtitle">{formatInquiryDate(inquiry.createdAt)}</p>
-                          </div>
-                        </div>
-                        <div className="admin-inquiry-actions">
-                          {inquiry.email && (
-                            <a href={`mailto:${inquiry.email}`} className="btn secondary">
-                              Reply
-                            </a>
-                          )}
-                          <button
-                            type="button"
-                            className="btn danger"
-                            onClick={() => handleDeleteInquiry(inquiry)}
-                            disabled={deletingInquiryId === inquiry._id}
-                          >
-                            {deletingInquiryId === inquiry._id ? "Deleting..." : "Delete"}
-                          </button>
-                        </div>
-                      </div>
-                      <dl className="admin-inquiry-details">
-                        <div>
-                          <dt>Email</dt>
-                          <dd>{inquiry.email ? <a href={`mailto:${inquiry.email}`}>{inquiry.email}</a> : "Not provided"}</dd>
-                        </div>
-                        <div>
-                          <dt>Phone</dt>
-                          <dd>{inquiry.phone ? <a href={`tel:${inquiry.phone}`}>{inquiry.phone}</a> : "Not provided"}</dd>
-                        </div>
-                        <div>
-                          <dt>Company</dt>
-                          <dd>{inquiry.company || "Not provided"}</dd>
-                        </div>
-                      </dl>
-                      <div className="admin-inquiry-message">
-                        <strong>Message</strong>
-                        <p>{inquiry.message || "No message provided."}</p>
-                      </div>
-                    </article>
-                  ))}
+                <div className="admin-inquiry-table-wrap">
+                  <table className="admin-inquiry-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Contact</th>
+                        <th scope="col">Company</th>
+                        <th scope="col">Message</th>
+                        <th scope="col">Received</th>
+                        <th scope="col">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleInquiries.map((inquiry) => (
+                        <tr key={inquiry._id || `${inquiry.email}-${inquiry.createdAt}`}>
+                          <td data-label="Contact">
+                            <strong>{inquiry.name || "Unnamed contact"}</strong>
+                            {inquiry.email ? <a href={`mailto:${inquiry.email}`}>{inquiry.email}</a> : <span>Not provided</span>}
+                            {inquiry.phone ? <a href={`tel:${inquiry.phone}`}>{inquiry.phone}</a> : <span>Not provided</span>}
+                          </td>
+                          <td data-label="Company">{inquiry.company || "Not provided"}</td>
+                          <td data-label="Message" className="admin-inquiry-table-message">
+                            {inquiry.message || "No message provided."}
+                          </td>
+                          <td data-label="Received">{formatInquiryDate(inquiry.createdAt)}</td>
+                          <td data-label="Actions">
+                            <div className="admin-inquiry-row-actions">
+                              {inquiry.email && (
+                                <a href={`mailto:${inquiry.email}`} className="btn secondary">
+                                  Reply
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                className="btn danger"
+                                onClick={() => handleDeleteInquiry(inquiry)}
+                                disabled={deletingInquiryId === inquiry._id}
+                              >
+                                {deletingInquiryId === inquiry._id ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
                 <article className="admin-board admin-board-soft admin-inquiry-empty">

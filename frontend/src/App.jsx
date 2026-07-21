@@ -57,6 +57,26 @@ function normalizeAboutSection(about) {
   };
 }
 
+function normalizeContactSection(contact) {
+  const fallback = defaultSiteContent.contact;
+
+  return {
+    ...(fallback || {}),
+    ...(contact || {}),
+    heading: contact?.heading || fallback.heading,
+    text: contact?.text || fallback.text,
+    eyebrow: contact?.eyebrow || fallback.eyebrow,
+    title: contact?.title || fallback.title,
+    description: contact?.description || fallback.description,
+    infoCards: contact?.infoCards?.length ? contact.infoCards : fallback.infoCards,
+    channelsTitle: contact?.channelsTitle || fallback.channelsTitle,
+    channels: contact?.channels?.length ? contact.channels : fallback.channels,
+    mapTitle: contact?.mapTitle || fallback.mapTitle,
+    mapLabel: contact?.mapLabel || fallback.mapLabel,
+    mapQuery: contact?.mapQuery || fallback.mapQuery,
+  };
+}
+
 function normalizeServiceImages(services) {
   return (services || []).map((service) => {
     if (service.heroImage) return service;
@@ -80,6 +100,7 @@ function normalizeSiteContent(content) {
   return {
     ...next,
     about: normalizeAboutSection(next.about),
+    contact: normalizeContactSection(next.contact),
     faq: next.faq || defaultSiteContent.faq,
     services: {
       ...(next.services || defaultSiteContent.services),
