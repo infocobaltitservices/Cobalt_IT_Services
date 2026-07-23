@@ -54,7 +54,7 @@ function CountUp({ value, suffix = "" }) {
   );
 }
 
-function TeamCard({ Team }) {
+function TeamCard({ Team, onReadMore }) {
   const [imageFailed, setImageFailed] = useState(false);
   const hasImage = Boolean(Team.image) && !imageFailed;
   const initials = (Team.name || "Team")
@@ -63,6 +63,7 @@ function TeamCard({ Team }) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+  const bio = String(Team.bio || "").trim();
 
   return (
     <article className="about-Team-card">
@@ -86,7 +87,10 @@ function TeamCard({ Team }) {
           <span className="about-Team-role">{Team.role}</span>
         </div>
         <h3>{Team.name}</h3>
-        <p>{Team.bio}</p>
+        <p>{bio}</p>
+        <button type="button" className="about-Team-toggle" onClick={onReadMore} aria-label={`Read more about ${Team.name}`}>
+          Read more
+        </button>
         {Team.socialLinks?.length ? (
           <div className="about-Team-socials" aria-label={`${Team.name} social links`}>
             {Team.socialLinks.map((link) => (
@@ -102,6 +106,7 @@ function TeamCard({ Team }) {
 }
 
 function AboutPage({ content, brand }) {
+  const [activeTeam, setActiveTeam] = useState(null);
   const teamMembers = content.Team || content.Teams || content.founders || [];
   const Team = teamMembers.filter((Team) => {
     const name = (Team.name || "").trim();
@@ -113,6 +118,24 @@ function AboutPage({ content, brand }) {
     return hasAnything;
   });
   const carouselRef = useRef(null);
+
+  useEffect(() => {
+    if (!activeTeam) return undefined;
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setActiveTeam(null);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [activeTeam]);
 
   function scrollCarousel(direction) {
     const node = carouselRef.current;
@@ -181,7 +204,11 @@ function AboutPage({ content, brand }) {
           >
             <div className="about-Team-track">
               {Team.map((Team) => (
-                <TeamCard key={Team.id || Team.name} Team={Team} />
+                <TeamCard
+                  key={Team.id || Team.name}
+                  Team={Team}
+                  onReadMore={() => setActiveTeam(Team)}
+                />
               ))}
             </div>
           </div>
@@ -195,6 +222,42 @@ function AboutPage({ content, brand }) {
             <span aria-hidden="true">›</span>
           </button>
         </div>
+
+        {activeTeam ? (
+          <div className="team-modal-overlay" role="presentation" onClick={() => setActiveTeam(null)}>
+            <div
+              className="team-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="team-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button type="button" className="team-modal-close" onClick={() => setActiveTeam(null)} aria-label="Close team details">
+                ×
+              </button>
+              <div className="team-modal-media">
+                {activeTeam.image ? <img src={activeTeam.image} alt={activeTeam.name} /> : null}
+              </div>
+              <div className="team-modal-copy">
+                <div className="about-Team-card-head">
+                  <span className="about-Team-number">{activeTeam.number}</span>
+                  <span className="about-Team-role">{activeTeam.role}</span>
+                </div>
+                <h3 id="team-modal-title">{activeTeam.name}</h3>
+                <p>{activeTeam.bio}</p>
+                {activeTeam.socialLinks?.length ? (
+                  <div className="about-Team-socials" aria-label={`${activeTeam.name} social links`}>
+                    {activeTeam.socialLinks.map((link) => (
+                      <a key={`${activeTeam.id || activeTeam.name}-${link.label}-modal`} href={link.href} target="_blank" rel="noreferrer">
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );

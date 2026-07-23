@@ -40,6 +40,10 @@ function PortfolioGalleryPage({ content }) {
             <div className="portfolio-media">
               <img src={item.image} alt={item.title} />
             </div>
+            <div className="portfolio-copy">
+              <strong>{item.title}</strong>
+              <p>{item.text}</p>
+            </div>
           </button>
         ))}
       </div>
@@ -58,6 +62,10 @@ function PortfolioGalleryPage({ content }) {
             </button>
             <div className="gallery-modal-media">
               <img src={activeItem.image} alt={activeItem.title} />
+            </div>
+            <div className="gallery-modal-copy">
+              <strong id="gallery-modal-title">{activeItem.title}</strong>
+              <p>{activeItem.text}</p>
             </div>
           </div>
         </div>

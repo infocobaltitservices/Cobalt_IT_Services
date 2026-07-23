@@ -17,6 +17,48 @@ function isSequentialDigits(digits) {
   return "01234567890123456789".includes(digits) || "98765432109876543210".includes(digits);
 }
 
+function ChannelIcon({ kind }) {
+  if (kind === "linkedin") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6.5 8.5H3.9v11.1h2.6V8.5ZM5.2 3.4A1.5 1.5 0 1 0 5.2 6a1.5 1.5 0 0 0 0-2.6ZM20.1 19.6h-2.6v-5.4c0-1.3 0-3-1.9-3s-2.2 1.5-2.2 2.9v5.5H10.8V8.5h2.5v1.5h.1c.4-.8 1.4-1.7 3-1.7 3.2 0 3.8 2.1 3.8 4.9v6.4Z" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  if (kind === "instagram") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4.2" y="4.2" width="15.6" height="15.6" rx="4.2" fill="none" stroke="currentColor" strokeWidth="1.9" />
+        <circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" strokeWidth="1.9" />
+        <circle cx="17.1" cy="6.9" r="1.1" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  if (kind === "facebook") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M13.3 21v-7h2.3l.4-2.8h-2.7V9.3c0-.8.2-1.4 1.4-1.4h1.5V5.4c-.3 0-1.2-.1-2.4-.1-2.4 0-4 1.5-4 4.2v1.7H7.2V14h2.6v7h3.5Z" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  if (kind === "whatsapp") {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4.5a7.6 7.6 0 0 0-6.5 11.5L4.6 20l4.2-1a7.6 7.6 0 1 0 3.2-14.5Zm4.4 10.7c-.2.6-1 1.1-1.5 1.2-.4.1-.9.1-1.4 0-.3-.1-.8-.2-1.3-.4-2.3-1-3.8-3.4-3.9-3.5-.1-.2-.9-1.1-.9-2s.5-1.3.7-1.5c.2-.2.4-.3.6-.3h.4c.1 0 .3 0 .4.3l.6 1.4c.1.3.1.5 0 .6-.1.1-.1.2-.2.3l-.3.3c-.1.1-.2.2-.1.4.1.2.5.9 1.2 1.5.8.7 1.5.9 1.8 1 .2.1.4 0 .5-.1l.5-.6c.1-.2.3-.2.5-.1l1.6.8c.2.1.4.2.4.4 0 .3 0 .9-.2 1.4Z" fill="currentColor" />
+      </svg>
+    );
+  }
+
+  return null;
+}
+
+function getChannelKind(label) {
+  return String(label || "").trim().toLowerCase();
+}
+
 function validateContactForm(values) {
   const cleaned = {
     name: cleanText(values.name),
@@ -142,8 +184,17 @@ function ContactPage({ content, brand }) {
             <h4>{content.channelsTitle}</h4>
             <div className="channel-row">
               {content.channels.map((item) => (
-                <a href={item.href} target="_blank" rel="noreferrer" key={item.label}>
-                  {item.label}
+                <a
+                  href={item.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={item.label}
+                  title={item.label}
+                  key={item.label}
+                >
+                  <span className="channel-icon" aria-hidden="true">
+                    <ChannelIcon kind={getChannelKind(item.label)} />
+                  </span>
                 </a>
               ))}
             </div>

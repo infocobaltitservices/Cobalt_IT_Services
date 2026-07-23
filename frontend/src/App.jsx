@@ -13,6 +13,7 @@ import ServiceDetailPage from "./pages/ServiceDetailPage";
 import AdminPage from "./pages/AdminPage";
 
 const headerSections = ["home", "about-us", "services", "gallery"];
+const SITE_CONTENT_CACHE_KEY = "cobalt-site-content-cache";
 
 const socialIconMap = {
   instagram: <path d="M16 6h16a10 10 0 0 1 10 10v16a10 10 0 0 1-10 10H16A10 10 0 0 1 6 32V16A10 10 0 0 1 16 6Zm8 9.5A8.5 8.5 0 1 0 32.5 24 8.51 8.51 0 0 0 24 15.5Zm0 3A5.5 5.5 0 1 1 18.5 24 5.51 5.51 0 0 1 24 18.5Zm10.25-5.75a2 2 0 1 0 2 2 2 2 0 0 0-2-2Z" />,
@@ -44,6 +45,27 @@ function SocialIcon({ kind }) {
       {socialIconMap[kind] || socialIconMap.instagram}
     </svg>
   );
+}
+
+function readCachedSiteContent() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const cached = localStorage.getItem(SITE_CONTENT_CACHE_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedSiteContent(content) {
+  if (typeof window === "undefined") return;
+
+  try {
+    localStorage.setItem(SITE_CONTENT_CACHE_KEY, JSON.stringify(content));
+  } catch {
+    // Ignore storage quota and serialization issues.
+  }
 }
 
 function normalizeAboutSection(about) {
@@ -117,7 +139,8 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [apiStatus, setApiStatus] = useState("Loading backend...");
-  const [siteContent, setSiteContent] = useState(normalizeSiteContent(defaultSiteContent));
+  const [siteContent, setSiteContent] = useState(() => normalizeSiteContent(readCachedSiteContent() || defaultSiteContent));
+  const [contentReady, setContentReady] = useState(false);
   const readRoute = () => (window.location.hash.replace("#/", "") || "home").toLowerCase();
   const [route, setRoute] = useState(readRoute);
 
@@ -156,8 +179,12 @@ function App() {
       }
 
       if (contentResult.status === "fulfilled") {
-        setSiteContent(normalizeSiteContent(contentResult.value));
+        const normalizedContent = normalizeSiteContent(contentResult.value);
+        setSiteContent(normalizedContent);
+        writeCachedSiteContent(normalizedContent);
       }
+
+      setContentReady(true);
     });
 
     return () => {
@@ -287,12 +314,25 @@ function App() {
         {activePage === "terms-privacy-policy" && <TermsPrivacyPage content={siteContent.legal} />}
         {
           activePage === "admin" && (
-            <AdminPage
-              initialContent={siteContent}
-              onContentSaved={(content) => setSiteContent(normalizeSiteContent(content))}
-              theme={theme}
-              onThemeToggle={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
-            />
+            contentReady ? (
+              <AdminPage
+                initialContent={siteContent}
+                onContentSaved={(content) => {
+                  const normalizedContent = normalizeSiteContent(content);
+                  setSiteContent(normalizedContent);
+                  writeCachedSiteContent(normalizedContent);
+                }}
+                theme={theme}
+                onThemeToggle={() => setTheme((prev) => (prev === "light" ? "dark" : "light"))}
+              />
+            ) : (
+              <section className="section admin-loading-state">
+                <div className="admin-loading-shell">
+                  <h2>Loading saved site content</h2>
+                  <p>We’re fetching the latest data from MongoDB Atlas before opening the editor.</p>
+                </div>
+              </section>
+            )
           )
         }
       </main>

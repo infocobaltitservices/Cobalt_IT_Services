@@ -262,6 +262,10 @@ function normalizeContentDraft(content) {
   return next;
 }
 
+function serializeContentDraft(content) {
+  return JSON.stringify(normalizeContentDraft(content));
+}
+
 function syncTeamMembers(nextAbout, teamMembers) {
   const members = teamMembers || [];
   nextAbout.Team = members;
@@ -288,6 +292,7 @@ const adminSections = [
 function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
   const [draft, setDraft] = useState(() => normalizeContentDraft(initialContent || defaultSiteContent));
   const draftRef = useRef(draft);
+  const initialSnapshotRef = useRef(serializeContentDraft(initialContent || defaultSiteContent));
   const [status, setStatus] = useState("idle");
   const [activeSection, setActiveSection] = useState("overview");
   const [activeServiceIndex, setActiveServiceIndex] = useState(0);
@@ -333,6 +338,24 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
     setDraft(nextDraft);
   }
 
+  useEffect(() => {
+    const nextDraft = normalizeContentDraft(initialContent || defaultSiteContent);
+    const nextSnapshot = serializeContentDraft(nextDraft);
+    const currentSnapshot = serializeContentDraft(draftRef.current);
+
+    if (nextSnapshot === currentSnapshot) {
+      initialSnapshotRef.current = nextSnapshot;
+      return;
+    }
+
+    if (currentSnapshot !== initialSnapshotRef.current) {
+      return;
+    }
+
+    initialSnapshotRef.current = nextSnapshot;
+    syncDraft(nextDraft);
+  }, [initialContent]);
+
   async function loadInquiries() {
     setInquiryStatus("loading");
     try {
@@ -375,7 +398,9 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
     try {
       await loginAdmin(loginForm.email, loginForm.password);
       const content = await getAdminSiteContent();
-      syncDraft(normalizeContentDraft(content));
+      const normalizedContent = normalizeContentDraft(content);
+      initialSnapshotRef.current = serializeContentDraft(normalizedContent);
+      syncDraft(normalizedContent);
       setAuthenticated(true);
       setStatus("authenticated");
     } catch (error) {
@@ -387,7 +412,9 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
     setStatus("refreshing");
     try {
       const content = await getAdminSiteContent();
-      syncDraft(normalizeContentDraft(content));
+      const normalizedContent = normalizeContentDraft(content);
+      initialSnapshotRef.current = serializeContentDraft(normalizedContent);
+      syncDraft(normalizedContent);
       await loadInquiries();
       setStatus("loaded");
     } catch (error) {
@@ -400,8 +427,10 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
     try {
       const payload = normalizeContentDraft(draftRef.current);
       const saved = await saveAdminSiteContent(payload);
-      syncDraft(normalizeContentDraft(saved));
-      onContentSaved(normalizeContentDraft(saved));
+      const normalizedSaved = normalizeContentDraft(saved);
+      initialSnapshotRef.current = serializeContentDraft(normalizedSaved);
+      syncDraft(normalizedSaved);
+      onContentSaved(normalizedSaved);
       setStatus("saved");
     } catch (error) {
       setStatus(error.message || "save-error");
@@ -416,8 +445,10 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
       const nextDraft = normalizeContentDraft(draftRef.current);
       cropConfig.apply(nextDraft, uploaded.url);
       const saved = await saveAdminSiteContent(nextDraft);
-      syncDraft(normalizeContentDraft(saved));
-      onContentSaved(normalizeContentDraft(saved));
+      const normalizedSaved = normalizeContentDraft(saved);
+      initialSnapshotRef.current = serializeContentDraft(normalizedSaved);
+      syncDraft(normalizedSaved);
+      onContentSaved(normalizedSaved);
       setStatus("saved");
     } catch (error) {
       setStatus(error.message || "upload-error");
@@ -433,8 +464,10 @@ function AdminPage({ initialContent, onContentSaved, theme, onThemeToggle }) {
       const nextDraft = normalizeContentDraft(draftRef.current);
       apply(nextDraft, uploaded.url);
       const saved = await saveAdminSiteContent(nextDraft);
-      syncDraft(normalizeContentDraft(saved));
-      onContentSaved(normalizeContentDraft(saved));
+      const normalizedSaved = normalizeContentDraft(saved);
+      initialSnapshotRef.current = serializeContentDraft(normalizedSaved);
+      syncDraft(normalizedSaved);
+      onContentSaved(normalizedSaved);
       setStatus("saved");
       return uploaded;
     } catch (error) {

@@ -13,44 +13,46 @@ function loadImage(src) {
   });
 }
 
+function getPlacement(containerWidth, containerHeight, imageWidth, imageHeight, zoom, xPercent, yPercent) {
+  const fitScale = Math.min(containerWidth / imageWidth, containerHeight / imageHeight);
+  const width = imageWidth * fitScale * zoom;
+  const height = imageHeight * fitScale * zoom;
+  const centerLeft = (containerWidth - width) / 2;
+  const centerTop = (containerHeight - height) / 2;
+  const panX = (Math.abs(containerWidth - width) / 2) * xPercent;
+  const panY = (Math.abs(containerHeight - height) / 2) * yPercent;
+
+  return {
+    width,
+    height,
+    left: centerLeft + panX,
+    top: centerTop + panY,
+  };
+}
+
 async function cropImageToDataUrl(src, crop) {
   const image = await loadImage(src);
   const canvas = document.createElement("canvas");
   canvas.width = crop.outputWidth;
   canvas.height = crop.outputHeight;
   const context = canvas.getContext("2d");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
 
-  const targetAspect = crop.outputWidth / crop.outputHeight;
-  const imageAspect = image.width / image.height;
-
-  let baseSourceWidth;
-  let baseSourceHeight;
-
-  if (imageAspect > targetAspect) {
-    baseSourceHeight = image.height;
-    baseSourceWidth = image.height * targetAspect;
-  } else {
-    baseSourceWidth = image.width;
-    baseSourceHeight = image.width / targetAspect;
-  }
-
-  const sourceWidth = Math.min(image.width, baseSourceWidth / crop.zoom);
-  const sourceHeight = Math.min(image.height, baseSourceHeight / crop.zoom);
-  const maxSourceX = Math.max(image.width - sourceWidth, 0);
-  const maxSourceY = Math.max(image.height - sourceHeight, 0);
-  const sourceX = clamp(maxSourceX * crop.xPercent, 0, maxSourceX);
-  const sourceY = clamp(maxSourceY * crop.yPercent, 0, maxSourceY);
-
-  context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
+  const placement = getPlacement(canvas.width, canvas.height, image.width, image.height, crop.zoom, crop.xPercent, crop.yPercent);
+  context.drawImage(image, placement.left, placement.top, placement.width, placement.height);
   return canvas.toDataURL("image/jpeg", 0.92);
 }
 
 function ImageCropModal({ isOpen, onClose, onSave, aspect = 1, outputWidth = 1200, outputHeight = 1200 }) {
   const [source, setSource] = useState("");
+  const [imageMeta, setImageMeta] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [xPercent, setXPercent] = useState(0);
   const [yPercent, setYPercent] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [previewBox, setPreviewBox] = useState({ width: 0, height: 0 });
+  const previewRef = useRef(null);
   const objectUrlRef = useRef("");
 
   useEffect(() => {
@@ -64,6 +66,7 @@ function ImageCropModal({ isOpen, onClose, onSave, aspect = 1, outputWidth = 120
   useEffect(() => {
     if (!isOpen) {
       setSource("");
+      setImageMeta(null);
       setZoom(1);
       setXPercent(0);
       setYPercent(0);
@@ -77,6 +80,24 @@ function ImageCropModal({ isOpen, onClose, onSave, aspect = 1, outputWidth = 120
     }),
     [aspect]
   );
+
+  useEffect(() => {
+    if (!previewRef.current || typeof ResizeObserver === "undefined") return undefined;
+
+    const observer = new ResizeObserver(([entry]) => {
+      const box = entry?.contentRect;
+      if (!box) return;
+      setPreviewBox({ width: box.width, height: box.height });
+    });
+
+    observer.observe(previewRef.current);
+    return () => observer.disconnect();
+  }, [isOpen]);
+
+  const previewPlacement = useMemo(() => {
+    if (!imageMeta?.width || !imageMeta?.height || !previewBox.width || !previewBox.height) return null;
+    return getPlacement(previewBox.width, previewBox.height, imageMeta.width, imageMeta.height, zoom, xPercent, yPercent);
+  }, [imageMeta, previewBox.height, previewBox.width, xPercent, yPercent, zoom]);
 
   if (!isOpen) {
     return null;
@@ -92,6 +113,15 @@ function ImageCropModal({ isOpen, onClose, onSave, aspect = 1, outputWidth = 120
 
     objectUrlRef.current = URL.createObjectURL(file);
     setSource(objectUrlRef.current);
+    setZoom(1);
+    setXPercent(0);
+    setYPercent(0);
+    loadImage(objectUrlRef.current)
+      .then((image) => setImageMeta({ width: image.width, height: image.height }))
+      .catch(() => setImageMeta(null));
+  }
+
+  function handleReset() {
     setZoom(1);
     setXPercent(0);
     setYPercent(0);
@@ -133,17 +163,24 @@ function ImageCropModal({ isOpen, onClose, onSave, aspect = 1, outputWidth = 120
             Choose image
           </label>
 
-          <div className={`admin-crop-preview ${source ? "has-image" : ""}`} style={viewportStyle}>
+          <div className={`admin-crop-preview ${source ? "has-image" : ""}`} style={viewportStyle} ref={previewRef}>
             {source ? (
-              <img
-                className="admin-crop-preview-image"
-                src={source}
-                alt="Crop preview"
-                style={{
-                  transform: `scale(${zoom})`,
-                  objectPosition: `${xPercent * 100}% ${yPercent * 100}%`,
-                }}
-              />
+              previewPlacement ? (
+                <img
+                  className="admin-crop-preview-image"
+                  src={source}
+                  alt="Crop preview"
+                  style={{
+                    position: "absolute",
+                    width: `${previewPlacement.width}px`,
+                    height: `${previewPlacement.height}px`,
+                    left: `${previewPlacement.left}px`,
+                    top: `${previewPlacement.top}px`,
+                  }}
+                />
+              ) : (
+                <img className="admin-crop-preview-image" src={source} alt="Crop preview" />
+              )
             ) : (
               <span>Select an image to start cropping</span>
             )}
@@ -152,16 +189,19 @@ function ImageCropModal({ isOpen, onClose, onSave, aspect = 1, outputWidth = 120
           <div className="admin-crop-controls">
             <label>
               Zoom
-              <input type="range" min="1" max="3" step="0.01" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} />
+              <input type="range" min="0.5" max="3" step="0.01" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} />
             </label>
             <label>
               Horizontal
-              <input type="range" min="0" max="1" step="0.01" value={xPercent} onChange={(event) => setXPercent(Number(event.target.value))} />
+              <input type="range" min="-1" max="1" step="0.01" value={xPercent} onChange={(event) => setXPercent(Number(event.target.value))} />
             </label>
             <label>
               Vertical
-              <input type="range" min="0" max="1" step="0.01" value={yPercent} onChange={(event) => setYPercent(Number(event.target.value))} />
+              <input type="range" min="-1" max="1" step="0.01" value={yPercent} onChange={(event) => setYPercent(Number(event.target.value))} />
             </label>
+            <button type="button" className="btn secondary" onClick={handleReset} disabled={!source}>
+              Reset crop
+            </button>
           </div>
         </div>
 
